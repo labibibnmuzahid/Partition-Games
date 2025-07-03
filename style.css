@@ -2,6 +2,55 @@
    1. Theming & Variables
    ========================================================================== */
 
+/* Front Page Styles */
+
+.lctr-logo {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 3px solid #fff;
+    border-radius: 20px;
+    padding: 60px 80px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.lctr-logo:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.lctr-logo h1 {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 4rem;
+    color: #fff;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.lctr-logo .subtitle {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.2rem;
+    color: #fff;
+    margin: 20px 0 0 0;
+    opacity: 0.9;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    .lctr-logo {
+        padding: 40px 50px;
+    }
+
+    .lctr-logo h1 {
+        font-size: 2.5rem;
+    }
+
+    .lctr-logo .subtitle {
+        font-size: 1rem;
+    }
+}
+
 :root {
     /* -- Polished Light Theme -- */
     --bg-color: #f8f9fa;

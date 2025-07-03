@@ -1,4 +1,7 @@
 // --- CORE GAME LOGIC ---
+
+// Front page functionality
+
 class Board {
     constructor(rows) { this.rows = [...rows]; }
     isEmpty() { return this.rows.length === 0; }
