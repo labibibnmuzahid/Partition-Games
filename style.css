@@ -317,6 +317,19 @@ section {
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
 
+.play-button.disabled {
+    background-color: #666;
+    color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.game-card:hover .play-button.disabled {
+    background-color: #666;
+    transform: none;
+    box-shadow: none;
+}
+
 /* ==========================================================================
    9. Documentation Section
    ========================================================================== */
