@@ -63,23 +63,10 @@ class Game {
 const SoundManager = {
     sounds: {},
     init() {
-        this.sounds.hover = document.getElementById('sound-hover');
-        this.sounds.remove = document.getElementById('sound-remove');
-        this.sounds.win = document.getElementById('sound-win');
-        this.sounds.click = document.getElementById('sound-click');
-        // Set volumes for a better mix
-        this.sounds.hover.volume = 0.3;
-        this.sounds.click.volume = 0.5;
-        this.sounds.remove.volume = 0.4;
+        // Sound effects disabled
     },
     play(soundName) {
-        const sound = this.sounds[soundName];
-        if (sound) {
-            sound.currentTime = 0;
-            sound.play().catch(e => {
-                // Ignore errors from rapid playback or user not interacting
-            });
-        }
+        // Sound effects disabled
     }
 };
 

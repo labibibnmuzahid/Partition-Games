@@ -75,19 +75,10 @@ function gRect(h, w) {
 class SoundManager{  
   static sounds={};  
   static init(){  
-    this.sounds.hover   = document.getElementById('sound-hover');  
-    this.sounds.remove  = document.getElementById('sound-remove');  
-    this.sounds.win     = document.getElementById('sound-win');  
-    this.sounds.click   = document.getElementById('sound-click');  
-    this.sounds.hover.volume  = 0.25;  
-    this.sounds.remove.volume = 0.45;  
-    this.sounds.click.volume  = 0.45;  
+    // Sound effects disabled
   }  
   static play(name){  
-    const s=this.sounds[name];  
-    if(!s) return;  
-    s.currentTime=0;  
-    s.play().catch(()=>{});  
+    // Sound effects disabled
   }  
 }  
   
