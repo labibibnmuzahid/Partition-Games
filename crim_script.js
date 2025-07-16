@@ -77,6 +77,19 @@ function getRowLengthsFromTuple(position) {
     return JSON.parse(position);
 }
 
+function staircase(n) {
+  let parts = []; 
+  let t = n; 
+  
+  while (t >= 1) 
+  {
+    parts.push(t);
+    t = t - 1; 
+  }
+  
+  return parts; // Sort descending like other games
+}
+
 function grundy(position) {
     if (position === '[]') return 0;
     if (grundyMemo.has(position)) return grundyMemo.get(position);
@@ -211,7 +224,9 @@ class ProLCTRGui {
         this.rowsInput = document.getElementById('rows-input');
         this.randomizeBtnGeneral = document.getElementById('randomize-btn-general');
         this.specificNumberInput = document.getElementById('specific-number-input');
+        this.specificNumberInputStairCase = document.getElementById('staircase-number-input');
         this.randomizeBtnSpecific = document.getElementById('randomize-btn-specific');
+        this.staircaseBtnSpecific = document.getElementById('staircase-btn-specific');
         this.aiSelect = document.getElementById('ai-select');
         this.difficultySelect = document.getElementById('difficulty-select');
         this.themeSelect = document.getElementById('theme-select');
@@ -240,6 +255,12 @@ class ProLCTRGui {
         if (this.randomizeBtnSpecific) {
             this.randomizeBtnSpecific.addEventListener('click', () => this.generateSpecificRandomBoard());
         }
+        if (this.staircaseBtnSpecific) {  
+            this.staircaseBtnSpecific  
+            .addEventListener('click',  
+                () => this.generateSpecificRandomBoardStairCase());  
+        }  
+
     }
 
     clearBoard() {
@@ -437,6 +458,20 @@ class ProLCTRGui {
         const partition = randomPartition(n); 
         this.rowsInput.value = partition.join(' '); 
     }
+
+    generateSpecificRandomBoardStairCase() {  
+        SoundManager.play('click');  
+  
+        const n = parseInt(this.specificNumberInputStairCase.value, 10); // <-- fixed  
+        if (isNaN(n) || n <= 0 || n > 200) {  
+            alert("Please enter a positive number less than or equal to 200.");  
+            return;  
+        }  
+        const partition = staircase(n);          // [n, n-1, … , 1]  
+        this.rowsInput.value = partition.join(' ');  
+    }  
+
+        
 
     processSetup() { 
         try { 

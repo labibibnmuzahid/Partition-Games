@@ -18,6 +18,19 @@ function randomPartition(n) {
   return parts.sort((a, b) => b - a); // Sort descending like other games
 }
 
+function staircase(n) {
+  let parts = []; 
+  let t = n; 
+  
+  while (t >= 1) 
+  {
+    parts.push(t);
+    t = t - 1; 
+  }
+  
+  return parts; // Sort descending like other games
+}
+
 /* ────────────────────  XOR calculations for perfect AI  ──────────────────── */  
 function xorAllFragments(state) {  
   let x = 0;  
@@ -241,6 +254,20 @@ class CRIM_GUI{
           const partition = randomPartition(n);
           this.rowsInput.value = partition.join(' ');
         });  
+
+    
+    document.getElementById('staircase-btn')
+        .addEventListener('click', () => {
+          SoundManager.play('click');
+          const specificInput = document.getElementById('staircase-number-input');
+          const n = parseInt(specificInput.value, 10);
+          if (isNaN(n) || n <= 0 || n > 200) {
+            alert("Please enter a positive number less than or equal to 200.");
+            return;
+          }
+          const partition = staircase(n);
+          this.rowsInput.value = partition.join(' ');
+        });
   
     /* theme toggle */  
     const themeTgl=document.getElementById('theme-toggle');  
