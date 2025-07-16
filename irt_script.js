@@ -127,8 +127,7 @@ class ProLCTRGui {
     getDOMElements() {
         this.gameCard = document.getElementById('game-card');
         this.statusLabel = document.getElementById('status-label');
-        this.canvas = document.getElementById('game-canvas');
-        this.ctx = this.canvas.getContext('2d');
+        this.boardArea = document.getElementById('board-area');
         this.aiThinkingIndicator = document.getElementById('ai-thinking-indicator');
         this.newGameBtn = document.getElementById('new-game-btn');
         this.themeToggle = document.getElementById('theme-toggle');
@@ -150,9 +149,9 @@ class ProLCTRGui {
     }
 
     bindEventListeners() {
-        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
-        this.canvas.addEventListener('click', () => this.handleMouseClick());
+        this.boardArea.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.boardArea.addEventListener('mouseleave', () => this.handleMouseLeave());
+        this.boardArea.addEventListener('click', () => this.handleMouseClick());
         this.startGameBtn.addEventListener('click', () => this.processSetup());
         this.newGameBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.playAgainBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
@@ -172,33 +171,24 @@ class ProLCTRGui {
     }
 
     redrawBoard() {
-        this.gameCard.querySelectorAll('.tile').forEach(tile => tile.remove());
+        this.boardArea.querySelectorAll('.tile').forEach(tile => tile.remove());
         if (!this.game) return;
-        const boardWidth = this.MARGIN * 2 + this.game.board.width() * this.CELL;
-        const boardHeight = this.MARGIN * 2 + this.game.board.height() * this.CELL;
-        this.canvas.width = Math.max(boardWidth, 2 * this.MARGIN);
-        this.canvas.height = Math.max(boardHeight, 2 * this.MARGIN);
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim();
-        this.ctx.lineWidth = 1;
-        this.game.board.squares().forEach(({ r, c }) => {
-            this.ctx.strokeRect(this.MARGIN + c * this.CELL + 0.5, this.MARGIN + r * this.CELL + 0.5, this.CELL, this.CELL);
-        });
+        
         this.game.board.squares().forEach(({ r, c }) => {
             const tile = document.createElement('div');
             tile.className = 'tile';
             tile.id = `tile-${r}-${c}`;
             tile.style.width = `${this.CELL}px`;
             tile.style.height = `${this.CELL}px`;
-            tile.style.left = `${this.canvas.offsetLeft + this.MARGIN + c * this.CELL}px`;
-            tile.style.top = `${this.canvas.offsetTop + this.MARGIN + r * this.CELL}px`;
-            this.gameCard.appendChild(tile);
+            tile.style.left = `${this.MARGIN + c * this.CELL}px`;
+            tile.style.top = `${this.MARGIN + r * this.CELL}px`;
+            this.boardArea.appendChild(tile);
         });
     }
 
     handleMouseMove(event) {
         if (!this.game || this.game.isAiTurn() || this.isAnimating) return;
-        const rect = this.canvas.getBoundingClientRect();
+        const rect = this.boardArea.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
         let detectedMove = null;
@@ -227,7 +217,7 @@ class ProLCTRGui {
                 }
             }
         }
-        this.canvas.classList.toggle('clickable', !!this.hoveredMove);
+        this.boardArea.classList.toggle('clickable', !!this.hoveredMove);
     }
 
     executeWithAnimation(move) {
@@ -276,7 +266,7 @@ class ProLCTRGui {
     processSetup() { try { SoundManager.play('click'); const nums = this.rowsInput.value.trim().split(/\s+/).map(Number).filter(n => n > 0).sort((a,b) => b-a); if (nums.length === 0 && this.rowsInput.value.trim() !== '0') { this.startGame([], null); this.setupModal.classList.remove('visible'); return; } const aiSide = this.aiSelect.value === "None" ? null : this.aiSelect.value; this.aiDifficulty = this.difficultySelect.value; this.gameCard.setAttribute('data-tile-theme', this.themeSelect.value); this.setupModal.classList.remove('visible'); this.startGame(nums, aiSide); } catch (e) { alert("Invalid input. Please enter positive integers only."); } }
     startGame(rows, aiSide) { this.game = new Game(new Board(rows), aiSide); this.hoveredMove = null; this.isAnimating = false; this.redrawBoard(); this.updateStatus(); if (this.game.isAiTurn()) { this.aiTurn(); } }
     aiTurn() { if (!this.game || !this.game.isAiTurn() || this.isAnimating) return; this.aiThinkingIndicator.classList.add('thinking'); setTimeout(() => { this.aiThinkingIndicator.classList.remove('thinking'); let move; const rand = Math.random(); const legalMoves = []; if (this.game.board.height() > 0) { for(let i=0; i<this.game.board.height(); i++) legalMoves.push({type: 'row', index: i}); } if ((this.aiDifficulty === 'Easy' && rand < 0.75) || (this.aiDifficulty === 'Medium' && rand < 0.30)) { move = legalMoves[Math.floor(Math.random() * legalMoves.length)]; } else { move = perfectMove(this.game.board.asTuple()); } this.executeWithAnimation(move); }, this.AI_THINK_MS); }
-    handleMouseLeave() { this.hoveredMove = null; this.gameCard.querySelectorAll('.tile.highlighted').forEach(t => t.classList.remove('highlighted')); this.canvas.classList.remove('clickable'); }
+    handleMouseLeave() { this.hoveredMove = null; this.boardArea.querySelectorAll('.tile.highlighted').forEach(t => t.classList.remove('highlighted')); this.boardArea.classList.remove('clickable'); }
     updateStatus() { if (!this.game || this.game.board.isEmpty()) { this.statusLabel.textContent = 'Game Over'; return; } const kind = this.game.isAiTurn() ? "Computer" : "Human"; const newText = `Player ${this.game.currentPlayer} (${kind}) to move`; if (this.statusLabel.textContent === newText) return; this.statusLabel.classList.add('exiting'); setTimeout(() => { this.statusLabel.textContent = newText; this.statusLabel.classList.remove('exiting'); }, 200); }
     handleMouseClick() { if (this.hoveredMove) { this.requestMove(this.hoveredMove); } }
     requestMove(move) { if (!this.isAnimating && !this.game.isAiTurn() && move) { this.executeWithAnimation(move); } }

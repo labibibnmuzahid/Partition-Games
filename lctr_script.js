@@ -111,8 +111,7 @@ class ProLCTRGui {
     getDOMElements() {
         this.gameCard = document.getElementById('game-card');
         this.statusLabel = document.getElementById('status-label');
-        this.canvas = document.getElementById('game-canvas');
-        this.ctx = this.canvas.getContext('2d');
+        this.boardArea = document.getElementById('board-area');
         this.aiThinkingIndicator = document.getElementById('ai-thinking-indicator');
         this.newGameBtn = document.getElementById('new-game-btn');
         this.themeToggle = document.getElementById('theme-toggle');
@@ -133,9 +132,9 @@ class ProLCTRGui {
     }
 
     bindEventListeners() {
-        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
-        this.canvas.addEventListener('click', () => this.handleMouseClick());
+        this.boardArea.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.boardArea.addEventListener('mouseleave', () => this.handleMouseLeave());
+        this.boardArea.addEventListener('click', () => this.handleMouseClick());
         this.startGameBtn.addEventListener('click', () => this.processSetup());
         this.newGameBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.playAgainBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
@@ -218,7 +217,7 @@ class ProLCTRGui {
     
     handleMouseMove(event) {
         if (!this.game || this.game.isAiTurn() || this.isAnimating) return;
-        const rect = this.canvas.getBoundingClientRect();
+        const rect = this.boardArea.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
         let detectedMove = null;
@@ -254,20 +253,20 @@ class ProLCTRGui {
         if (detectedMove !== this.hoveredMove) {
             if (detectedMove) SoundManager.play('hover');
             this.hoveredMove = detectedMove;
-            this.gameCard.querySelectorAll('.tile.highlighted').forEach(t => t.classList.remove('highlighted'));
+            this.boardArea.querySelectorAll('.tile.highlighted').forEach(t => t.classList.remove('highlighted'));
             if (this.hoveredMove === 'row') {
                 for (let c = 0; c < this.game.board.rows[0]; c++) { document.getElementById(`tile-0-${c}`)?.classList.add('highlighted'); }
             } else if (this.hoveredMove === 'col') {
                 for (let r = 0; r < this.game.board.height(); r++) { document.getElementById(`tile-${r}-0`)?.classList.add('highlighted'); }
             }
         }
-        this.canvas.classList.toggle('clickable', !!this.hoveredMove);
+        this.boardArea.classList.toggle('clickable', !!this.hoveredMove);
     }
 
     handleMouseLeave() {
         this.hoveredMove = null;
-        this.gameCard.querySelectorAll('.tile.highlighted').forEach(t => t.classList.remove('highlighted'));
-        this.canvas.classList.remove('clickable');
+        this.boardArea.querySelectorAll('.tile.highlighted').forEach(t => t.classList.remove('highlighted'));
+        this.boardArea.classList.remove('clickable');
     }
 
     executeWithAnimation(moveKind) {
@@ -305,26 +304,18 @@ class ProLCTRGui {
     }
 
     redrawBoard() {
-        this.gameCard.querySelectorAll('.tile').forEach(tile => tile.remove());
-        const boardWidth = this.MARGIN * 2 + this.game.board.width() * this.CELL;
-        const boardHeight = this.MARGIN * 2 + this.game.board.height() * this.CELL;
-        this.canvas.width = Math.max(boardWidth, 2 * this.MARGIN);
-        this.canvas.height = Math.max(boardHeight, 2 * this.MARGIN);
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim();
-        this.ctx.lineWidth = 1;
-        this.game.board.squares().forEach(({ r, c }) => {
-            this.ctx.strokeRect(this.MARGIN + c * this.CELL + 0.5, this.MARGIN + r * this.CELL + 0.5, this.CELL, this.CELL);
-        });
+        this.boardArea.querySelectorAll('.tile').forEach(tile => tile.remove());
+        if (!this.game) return;
+        
         this.game.board.squares().forEach(({ r, c }) => {
             const tile = document.createElement('div');
             tile.className = 'tile';
             tile.id = `tile-${r}-${c}`;
             tile.style.width = `${this.CELL}px`;
             tile.style.height = `${this.CELL}px`;
-            tile.style.left = `${this.canvas.offsetLeft + this.MARGIN + c * this.CELL}px`;
-            tile.style.top = `${this.canvas.offsetTop + this.MARGIN + r * this.CELL}px`;
-            this.gameCard.appendChild(tile);
+            tile.style.left = `${this.MARGIN + c * this.CELL}px`;
+            tile.style.top = `${this.MARGIN + r * this.CELL}px`;
+            this.boardArea.appendChild(tile);
         });
     }
 
