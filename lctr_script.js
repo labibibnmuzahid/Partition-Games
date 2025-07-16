@@ -40,6 +40,20 @@ function perfectMove(position) {
     }
     return posArray.length > 0 ? "row" : "col";
 }
+
+function staircase(n) {
+  let parts = []; 
+  let t = n; 
+  
+  while (t >= 1) 
+  {
+    parts.push(t);
+    t = t - 1; 
+  }
+  
+  return parts; // Sort descending like other games
+}
+
 class Game {
     static PLAYERS = ["A", "B"];
     constructor(board, aiPlayer) {
@@ -120,7 +134,9 @@ class ProLCTRGui {
         this.rowsInput = document.getElementById('rows-input');
         this.randomizeBtnGeneral = document.getElementById('randomize-btn-general');
         this.specificNumberInput = document.getElementById('specific-number-input');
+        this.specificNumberInputStairCase = document.getElementById('staircase-number-input');
         this.randomizeBtnSpecific = document.getElementById('randomize-btn-specific');
+        this.staircaseBtnSpecific = document.getElementById('staircase-btn-specific');
         this.aiSelect = document.getElementById('ai-select');
         this.difficultySelect = document.getElementById('difficulty-select');
         this.themeSelect = document.getElementById('theme-select');
@@ -128,25 +144,32 @@ class ProLCTRGui {
         this.playAgainBtn = document.getElementById('play-again-btn');
         this.gameOverMessage = document.getElementById('game-over-message');
         this.helpBtn = document.getElementById('help-btn');
-        this.helpPopover = document.getElementById('help-popover');
+        this.helpBtnModal = document.getElementById('help-btn-modal');
+        this.helpPopover = document.getElementById('help-popover'); 
     }
 
     bindEventListeners() {
-        this.boardArea.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.boardArea.addEventListener('mouseleave', () => this.handleMouseLeave());
-        this.boardArea.addEventListener('click', () => this.handleMouseClick());
         this.startGameBtn.addEventListener('click', () => this.processSetup());
         this.newGameBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.playAgainBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.themeToggle.addEventListener('change', () => { SoundManager.play('click'); this.toggleTheme(); });
         this.helpBtn.addEventListener('mouseenter', () => this.showHelp());
         this.helpBtn.addEventListener('mouseleave', () => this.hideHelp());
+        if (this.helpBtnModal) {
+            this.helpBtnModal.addEventListener('mouseenter', () => this.showHelp());
+            this.helpBtnModal.addEventListener('mouseleave', () => this.hideHelp());
+        }
         if (this.randomizeBtnGeneral) {
             this.randomizeBtnGeneral.addEventListener('click', () => this.generateGeneralRandomBoard());
         }
         if (this.randomizeBtnSpecific) {
             this.randomizeBtnSpecific.addEventListener('click', () => this.generateSpecificRandomBoard());
         }
+        if (this.staircaseBtnSpecific) {  
+            this.staircaseBtnSpecific  
+            .addEventListener('click',  
+                () => this.generateSpecificRandomBoardStairCase());  
+        } 
     }
     
     processSetup() {
@@ -183,6 +206,18 @@ class ProLCTRGui {
         const partition = randomPartition(n);
         this.rowsInput.value = partition.join(' ');
     }
+
+    generateSpecificRandomBoardStairCase() {  
+    SoundManager.play('click');  
+  
+    const n = parseInt(this.specificNumberInputStairCase.value, 10); // <-- fixed  
+    if (isNaN(n) || n <= 0 || n > 200) {  
+        alert("Please enter a positive number less than or equal to 200.");  
+        return;  
+    }  
+    const partition = staircase(n);          // [n, n-1, … , 1]  
+    this.rowsInput.value = partition.join(' ');  
+    }  
 
     startGame(rows, aiSide) {
         this.game = new Game(new Board(rows), aiSide);
