@@ -1,4 +1,7 @@
 /* Random partition utility functions */
+const CELL_SIZE = 40;
+const GAP_SIZE = 30;
+
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -105,10 +108,12 @@ class Player{
   
 class Fragment{  
   // grid: 2-D boolean array  
-  constructor(grid){  
+  constructor(grid, x = 0, y = 0){  
     this.grid = grid;  
     this.rows = grid.length;  
-    this.cols = this.rows?grid[0].length:0;  
+    this.cols = this.rows?grid[0].length:0;
+    this.x = x;  // position on the board
+    this.y = y;  // position on the board
   }  
   rowsAlive(){  
     const alive=[];  
@@ -189,15 +194,44 @@ class Fragment{
 class GameState{  
   constructor(rowSizes){  
     this.fragments=[Fragment.fromRowSizes(rowSizes)];  
-    this.player=Player.RED;  
+    this.player=Player.RED;
   }  
   hasMoves(){return this.fragments.some(f=>f.hasMoves());}  
   performMove(fIdx,kind,lineIdx){  
     const frag=this.fragments[fIdx];  
+    const originalX = frag.x;
+    const originalY = frag.y;
+    
     if(kind==='row') frag.deleteRow(lineIdx);  
     else              frag.deleteCol(lineIdx);  
-  
+
     const newFrags=frag.splitIntoFragments();  
+    
+    // Position the new fragments relative to the original fragment's position
+    if (newFrags.length > 1) {
+      if (kind === 'row') {
+        // Row was removed: arrange new fragments vertically
+        let currentY = originalY;
+        newFrags.forEach(newFrag => {
+          newFrag.x = originalX;
+          newFrag.y = currentY;
+          currentY += newFrag.rows * CELL_SIZE + GAP_SIZE * 2;
+        });
+      } else {
+        // Column was removed: arrange new fragments horizontally  
+        let currentX = originalX;
+        newFrags.forEach(newFrag => {
+          newFrag.x = currentX;
+          newFrag.y = originalY;
+          currentX += newFrag.cols * CELL_SIZE + GAP_SIZE * 2;
+        });
+      }
+    } else if (newFrags.length === 1) {
+      // Only one fragment remains, keep it in the same position
+      newFrags[0].x = originalX;
+      newFrags[0].y = originalY;
+    }
+    
     this.fragments.splice(fIdx,1,...newFrags);  
     this.player=Player.other(this.player);  
   }  
@@ -332,30 +366,29 @@ class CRIM_GUI{
     
     // Calculate required dimensions and update board area
     this.updateBoardDimensions();
-    
-    let x0=this.GAP, y0=this.GAP;  
 
     this.state.fragments.forEach((frag,fIdx)=>{  
-      this.drawFragment(frag,fIdx,x0,y0);  
-      x0 += frag.cols*this.CELL + this.GAP*2; // move right for next fragment  
+      this.drawFragment(frag,fIdx,frag.x + this.GAP, frag.y + this.GAP);  
     });  
   }
   
   updateBoardDimensions() {
     if (!this.state || this.state.fragments.length === 0) return;
     
-    // Calculate total width needed for all fragments
-    let totalWidth = this.GAP; // Start with initial gap
-    let maxHeight = 0;
+    // Calculate the bounding box that contains all fragments
+    let minX = 0, minY = 0, maxX = 0, maxY = 0;
     
     this.state.fragments.forEach(frag => {
-      totalWidth += frag.cols * this.CELL + this.GAP * 2; // fragment width + gaps
-      maxHeight = Math.max(maxHeight, frag.rows * this.CELL);
+      const fragRight = frag.x + frag.cols * this.CELL;
+      const fragBottom = frag.y + frag.rows * this.CELL;
+      
+      maxX = Math.max(maxX, fragRight);
+      maxY = Math.max(maxY, fragBottom);
     });
     
-    // Add margins for labels
-    const requiredWidth = totalWidth + this.LABEL;
-    const requiredHeight = this.GAP + maxHeight + this.LABEL;
+    // Add margins for labels and gaps
+    const requiredWidth = maxX + this.GAP * 2 + this.LABEL;
+    const requiredHeight = maxY + this.GAP * 2 + this.LABEL;
     
     // Set minimum dimensions
     const minDimension = 480;
