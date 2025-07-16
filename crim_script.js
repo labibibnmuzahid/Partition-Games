@@ -251,10 +251,34 @@ class ProLCTRGui {
         this.clearBoard();
         if (!this.game) return;
         
+        // Calculate required dimensions and update board area
+        this.updateBoardDimensions();
+        
         const x0 = this.MARGIN;
         const y0 = this.MARGIN;
         
         this.drawBoard(this.game.board, x0, y0);
+    }
+
+    updateBoardDimensions() {
+        if (!this.game) return;
+        
+        const board = this.game.board;
+        const boardHeight = board.height();
+        const boardWidth = board.width();
+        
+        // Calculate required dimensions (keeping original cell size)
+        let requiredWidth = this.MARGIN + (boardWidth * this.CELL) + this.LABEL;
+        let requiredHeight = this.MARGIN + (boardHeight * this.CELL) + this.LABEL;
+        
+        // Set minimum dimensions
+        const minDimension = 480;
+        requiredWidth = Math.max(requiredWidth, minDimension);
+        requiredHeight = Math.max(requiredHeight, minDimension);
+        
+        // Apply the calculated dimensions to the board area
+        this.boardArea.style.width = `${requiredWidth}px`;
+        this.boardArea.style.height = `${requiredHeight}px`;
     }
 
     drawBoard(board, x0, y0) {
@@ -434,6 +458,7 @@ class ProLCTRGui {
     }
 
     startGame(rows, aiSide) { 
+        this.resetBoardDimensions();
         this.game = new Game(new Board(rows), aiSide); 
         this.isAnimating = false; 
         this.redrawBoard(); 
@@ -441,6 +466,13 @@ class ProLCTRGui {
         if (this.game.isAiTurn()) { 
             this.aiTurn(); 
         } 
+    }
+
+    resetBoardDimensions() {
+        // Reset to default dimensions for new games
+        this.CELL = 40;
+        this.MARGIN = 20;
+        this.LABEL = 20;
     }
 
     aiTurn() { 
