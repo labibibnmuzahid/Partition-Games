@@ -203,7 +203,7 @@ class ProLCTRGui {
         this.AI_THINK_MS = 800;
         this.game = null; 
         this.isAnimating = false; 
-        this.aiDifficulty = 'Medium';
+        this.aiDifficultyValue = 50;
         this.idCounter = 0;
         this.idToAddress = new Map();
         this.getDOMElements();
@@ -228,7 +228,8 @@ class ProLCTRGui {
         this.randomizeBtnSpecific = document.getElementById('randomize-btn-specific');
         this.staircaseBtnSpecific = document.getElementById('staircase-btn-specific');
         this.aiSelect = document.getElementById('ai-select');
-        this.difficultySelect = document.getElementById('difficulty-select');
+        this.difficultySlider = document.getElementById('difficulty-slider');
+        this.difficultyLabel = document.getElementById('difficulty-label');
         this.themeSelect = document.getElementById('theme-select');
         this.startGameBtn = document.getElementById('start-game-btn');
         this.playAgainBtn = document.getElementById('play-again-btn');
@@ -243,6 +244,8 @@ class ProLCTRGui {
         this.newGameBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.playAgainBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.themeToggle.addEventListener('change', () => { SoundManager.play('click'); this.toggleTheme(); });
+        this.themeSelect.addEventListener('change', () => { SoundManager.play('click'); this.applyTileTheme(); });
+        this.difficultySlider.addEventListener('input', () => this.updateDifficultyLabel());
         this.helpBtn.addEventListener('mouseenter', () => this.showHelp());
         this.helpBtn.addEventListener('mouseleave', () => this.hideHelp());
         if (this.helpBtnModal) {
@@ -483,7 +486,7 @@ class ProLCTRGui {
                 return; 
             } 
             const aiSide = this.aiSelect.value === "None" ? null : this.aiSelect.value; 
-            this.aiDifficulty = this.difficultySelect.value; 
+            this.aiDifficultyValue = parseInt(this.difficultySlider.value); 
             this.gameCard.setAttribute('data-tile-theme', this.themeSelect.value); 
             this.setupModal.classList.remove('visible'); 
             this.startGame(nums, aiSide); 
@@ -523,7 +526,11 @@ class ProLCTRGui {
             this.game.board.rowsAlive().forEach(i => legalMoves.push({type: 'row', index: i}));
             this.game.board.colsAlive().forEach(j => legalMoves.push({type: 'col', index: j}));
             
-            if ((this.aiDifficulty === 'Easy' && rand < 0.75) || (this.aiDifficulty === 'Medium' && rand < 0.30)) { 
+            // Calculate mistake probability based on difficulty value (1-100)
+            // Perfect (100) = no mistakes, Easy (1-19) = high mistakes, etc.
+            const mistakeProbability = this.aiDifficultyValue === 100 ? 0 : (100 - this.aiDifficultyValue) / 100;
+            
+            if (rand < mistakeProbability) { 
                 move = legalMoves[Math.floor(Math.random() * legalMoves.length)]; 
             } else { 
                 move = perfectMove(this.game.board.asTuple()); 
@@ -566,12 +573,34 @@ class ProLCTRGui {
         const savedTheme = localStorage.getItem('theme') || 'dark'; 
         document.documentElement.setAttribute('data-theme', savedTheme); 
         this.themeToggle.checked = savedTheme === 'dark'; 
+        // Apply initial tile theme
+        this.applyTileTheme();
+        // Initialize difficulty label
+        this.updateDifficultyLabel();
     }
     toggleTheme() { 
         const newTheme = this.themeToggle.checked ? 'dark' : 'light'; 
         document.documentElement.setAttribute('data-theme', newTheme); 
         localStorage.setItem('theme', newTheme); 
     }
+
+    applyTileTheme() {
+        this.gameCard.setAttribute('data-tile-theme', this.themeSelect.value);
+    }
+
+    updateDifficultyLabel() {
+        const value = parseInt(this.difficultySlider.value);
+        const difficulty = this.getDifficultyFromValue(value);
+        this.difficultyLabel.textContent = `${difficulty} (${value})`;
+    }
+
+    getDifficultyFromValue(value) {
+        if (value < 20) return 'Easy';
+        if (value <= 70) return 'Medium';
+        if (value <= 99) return 'Hard';
+        return 'Perfect';
+    }
+
     showSetupModal() { 
         this.gameOverModal.classList.remove('visible'); 
         this.setupModal.classList.add('visible'); 
