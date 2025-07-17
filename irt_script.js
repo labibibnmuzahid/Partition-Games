@@ -119,7 +119,8 @@ const Sound = {
 // 5.  GUI controller   (hover logic updated)  
 // ────────────────────────────────────────────────────────────  
 class IRTGui {  
-  CELL=40; MARGIN=20; ANIM=350; AI_WAIT=650;  
+  CELL=40; MARGIN=20; ANIM=350; AI_WAIT=650;
+  currentCellSize = this.CELL; // Dynamic cell size  
   
   constructor() {  
     /* canvas & misc */  
@@ -135,21 +136,32 @@ class IRTGui {
     this.msg    = document.getElementById("game-over-message");  
     this.rowsIn = document.getElementById("rows-input");  
     this.aiSel  = document.getElementById("ai-select");  
-    this.diffSel= document.getElementById("difficulty-select");  
+    this.difficultySlider = document.getElementById("difficulty-slider");
+    this.difficultyLabel = document.getElementById("difficulty-label");
     this.themeSel=document.getElementById("theme-select");  
     this.themeT = document.getElementById("theme-toggle");  
-  
+    this.undoBtn = document.getElementById("undo-btn");
+
     /* buttons */  
     document.getElementById("start-game-btn").onclick = ()=>this.start();  
     document.getElementById("play-again-btn").onclick = ()=>this.showSetup();  
     document.getElementById("new-game-btn").onclick   = ()=>this.showSetup();  
-  
+    this.undoBtn.onclick = ()=>this.undoMove();
+    document.getElementById("generate-partition-btn").onclick = ()=>this.generatePartition();
+
     /* theme & help */  
     this.themeT.onchange = ()=>this.toggleTheme();  
+    this.themeSel.onchange = ()=>this.applyTileTheme();
+    this.difficultySlider.addEventListener('input', () => this.updateDifficultyLabel());
     const helpBtn  = document.getElementById("help-btn");  
+    const helpBtnModal = document.getElementById("help-btn-modal");
     const helpPop  = document.getElementById("help-popover");  
     helpBtn.onmouseenter = ()=>helpPop.classList.add("visible");  
-    helpBtn.onmouseleave = ()=>helpPop.classList.remove("visible");  
+    helpBtn.onmouseleave = ()=>helpPop.classList.remove("visible");
+    if (helpBtnModal) {
+      helpBtnModal.onmouseenter = ()=>helpPop.classList.add("visible");  
+      helpBtnModal.onmouseleave = ()=>helpPop.classList.remove("visible");
+    }
   
     /* canvas interaction */  
     this.canvas.onmousemove = e=>this.hover(e);  
@@ -158,9 +170,18 @@ class IRTGui {
   
     /* state */  
     this.game=null; this.hoverMove=null; this.anim=false;  
+    this.gameHistory = []; // Store previous game states for undo
   
     /* boot */  
-    this.initTheme(); Sound.init(); this.showSetup();  
+    this.initTheme(); Sound.init(); this.showSetup();
+    
+    // Add window resize listener for responsive cell sizing
+    window.addEventListener('resize', () => {
+      if (this.game) {
+        this.draw();
+      }
+    });  
+    this.applyTileTheme(); // Apply initial tile theme
   }  
   
   /* ---------- game start / AI ---------- */  
@@ -172,15 +193,17 @@ class IRTGui {
       return;  
     }  
     const ai = this.aiSel.value==="None"?null:this.aiSel.value;  
-    this.game = new Game(rows, ai, this.diffSel.value);  
-    this.card.setAttribute("data-tile-theme", this.themeSel.value);  
-  
+    this.game = new Game(rows, ai, this.getDifficultyFromValue(parseInt(this.difficultySlider.value)));  
+
     this.setupB.classList.remove("visible");  
+    this.clearGameHistory(); // Clear undo history for new game
     this.draw(); this.updateStatus();  
-    if (this.game.isAiTurn()) this.aiTurn();  
+    this.updateUndoButton();
+    if (this.game.isAiTurn()) this.aiTurn();
   }  
   aiTurn() {  
     this.dots.classList.add("thinking");  
+    this.updateUndoButton(); // Update undo button state during AI turn
     setTimeout(()=>{  
       const m=this.game.aiMove();  
       this.dots.classList.remove("thinking");  
@@ -192,8 +215,8 @@ class IRTGui {
   hover(evt){  
     if(!this.game || this.game.isAiTurn() || this.anim) return;  
     const {x,y}=this.rel(evt);  
-    const r=Math.floor((y-this.MARGIN)/this.CELL);  
-    const c=Math.floor((x-this.MARGIN)/this.CELL);  
+    const r=Math.floor((y-this.MARGIN)/this.currentCellSize);  
+    const c=Math.floor((x-this.MARGIN)/this.currentCellSize);  
     let m=null;  
     if(r>=0 && r<this.game.board.height()){  
       const len=this.game.board.rows[r];  
@@ -218,11 +241,14 @@ class IRTGui {
   
   /* ---------- execute move ---------- */  
   execute(m){  
+    // Save the current state before making a move (for undo functionality)
+    this.saveGameState();
+    
     this.anim=true; Sound.play("remove");  
     const len=this.game.board.rows[m.r];  
     for(let c=m.newLen;c<len;c++)  
       document.getElementById(`t-${m.r}-${c}`)?.classList.add("removing");  
-  
+
     setTimeout(()=>{  
       const done=this.game.move(m);  
       this.anim=false; this.draw();  
@@ -230,8 +256,10 @@ class IRTGui {
         Sound.play("win");  
         this.msg.textContent=`Player ${this.game.player()} wins!`;  
         this.overB.classList.add("visible");  
+        this.updateUndoButton();
       }else{  
         this.updateStatus();  
+        this.updateUndoButton();
         if(this.game.isAiTurn()) this.aiTurn();  
       }  
     }, this.ANIM);  
@@ -240,8 +268,12 @@ class IRTGui {
   /* ---------- drawing ---------- */  
   draw(){  
     this.card.querySelectorAll(".tile").forEach(t=>t.remove());  
-    const w=this.MARGIN*2+this.game.board.width()*this.CELL;  
-    const h=this.MARGIN*2+this.game.board.height()*this.CELL;  
+    
+    // Dynamic cell sizing to prevent overflow
+    this.calculateOptimalCellSize();
+    
+    const w=this.MARGIN*2+this.game.board.width()*this.currentCellSize;  
+    const h=this.MARGIN*2+this.game.board.height()*this.currentCellSize;  
     this.canvas.width=w; this.canvas.height=h;  
     this.ctx.clearRect(0,0,w,h);  
     this.ctx.strokeStyle=getComputedStyle(document.documentElement)  
@@ -249,13 +281,13 @@ class IRTGui {
     this.ctx.lineWidth=1;  
   
     this.game.board.squares().forEach(({r,c})=>{  
-      const sx=this.MARGIN+c*this.CELL+.5;  
-      const sy=this.MARGIN+r*this.CELL+.5;  
-      this.ctx.strokeRect(sx,sy,this.CELL,this.CELL);  
+      const sx=this.MARGIN+c*this.currentCellSize+.5;  
+      const sy=this.MARGIN+r*this.currentCellSize+.5;  
+      this.ctx.strokeRect(sx,sy,this.currentCellSize,this.currentCellSize);  
   
       const d=document.createElement("div");  
       d.className="tile"; d.id=`t-${r}-${c}`;  
-      d.style.width=d.style.height=`${this.CELL}px`;  
+      d.style.width=d.style.height=`${this.currentCellSize}px`;  
       d.style.left=`${this.canvas.offsetLeft+sx}px`;  
       d.style.top =`${this.canvas.offsetTop +sy}px`;  
       this.card.appendChild(d);  
@@ -288,9 +320,187 @@ class IRTGui {
     document.documentElement.setAttribute("data-theme",t);  
     localStorage.setItem("theme",t);  
   }  
+  applyTileTheme(){
+    this.card.setAttribute("data-tile-theme", this.themeSel.value);
+  }
+
+  // Random partition utility functions
+  randomInt(min, max) { 
+    return Math.floor(Math.random() * (max - min + 1)) + min; 
+  }
+
+  randomPartition(n) { 
+    let parts = []; 
+    let remaining = n; 
+    let maxPart = n; 
+    while (remaining > 0) { 
+      let part = this.randomInt(1, Math.min(remaining, maxPart)); 
+      parts.push(part); 
+      remaining -= part; 
+      maxPart = part; 
+    } 
+    return parts.sort((a, b) => b - a); // Sort descending
+  }
+
+  staircase(n) {
+    let parts = []; 
+    let t = n; 
+    while (t >= 1) {
+      parts.push(t);
+      t = t - 1; 
+    }
+    return parts; // Already descending
+  }
+
+  generatePartition() {
+    const partitionTypeSelect = document.getElementById('partition-type-select');
+    const partitionNumberInput = document.getElementById('partition-number-input');
+    
+    const partitionType = partitionTypeSelect.value;
+    const n = parseInt(partitionNumberInput.value, 10);
+    
+    if (isNaN(n) || n <= 0 || n > 200) {
+      alert("Please enter a positive number less than or equal to 200.");
+      return;
+    }
+    
+    let partition;
+    
+    switch (partitionType) {
+      case 'random':
+        partition = this.randomPartition(n);
+        break;
+      case 'staircase':
+        partition = this.staircase(n);
+        break;
+      case 'rectangle':
+        // Placeholder - will be implemented later
+        alert("Rectangle partitions are not yet implemented.");
+        return;
+      case 'square':
+        // Placeholder - will be implemented later
+        alert("Square partitions are not yet implemented.");
+        return;
+      case 'hook':
+        // Placeholder - will be implemented later
+        alert("Hook partitions are not yet implemented.");
+        return;
+      case 'triangle':
+        // Placeholder - will be implemented later
+        alert("Triangle partitions are not yet implemented.");
+        return;
+      default:
+        alert("Unknown partition type selected.");
+        return;
+    }
+    
+    this.rowsIn.value = partition.join(' ');
+  }
+
+  // Game state management for undo functionality
+  saveGameState() {
+    if (!this.game) return;
+    
+    // Deep copy the current game state
+    const gameState = {
+      board: this.game.board.clone(),
+      turn: this.game.turn
+    };
+    
+    this.gameHistory.push(gameState);
+    this.updateUndoButton();
+  }
+
+  undoMove() {
+    if (!this.game || this.gameHistory.length === 0 || !this.canUndo()) {
+      return;
+    }
+
+    // Restore the previous game state
+    const previousState = this.gameHistory.pop();
+    this.game.board = previousState.board;
+    this.game.turn = previousState.turn;
+    
+    // Redraw and update UI
+    this.draw();
+    this.updateStatus();
+    this.updateUndoButton();
+  }
+
+  canUndo() {
+    return this.game && this.gameHistory.length > 0 && 
+           !this.game.isAiTurn() && !this.anim;
+  }
+
+  updateUndoButton() {
+    if (!this.undoBtn) return;
+    
+    const canUndo = this.canUndo();
+    
+    if (this.game && this.gameHistory.length >= 0) {
+      this.undoBtn.style.display = 'flex';
+      this.undoBtn.disabled = !canUndo;
+    } else {
+      this.undoBtn.style.display = 'none';
+    }
+  }
+
+  clearGameHistory() {
+    this.gameHistory = [];
+    this.updateUndoButton();
+  }
+  
+  calculateOptimalCellSize() {
+    if (!this.game) {
+      this.currentCellSize = this.CELL;
+      return;
+    }
+    
+    const boardWidth = this.game.board.width();
+    const boardHeight = this.game.board.height();
+    
+    // Calculate required canvas size with default cell size
+    const requiredWidth = this.MARGIN * 2 + boardWidth * this.CELL;
+    const requiredHeight = this.MARGIN * 2 + boardHeight * this.CELL;
+    
+    // Get actual available viewport space
+    // Account for header (about 90px), padding (40px total), and some breathing room (40px)
+    const availableWidth = window.innerWidth - 40; // Just side margins
+    const availableHeight = window.innerHeight - 170; // Header + top/bottom padding + breathing room
+    
+    // Only scale down if the board would actually overflow
+    let scale = 1;
+    if (requiredWidth > availableWidth) {
+      scale = Math.min(scale, availableWidth / requiredWidth);
+    }
+    if (requiredHeight > availableHeight) {
+      scale = Math.min(scale, availableHeight / requiredHeight);
+    }
+    
+    // Apply scale but don't go below 20px for usability
+    this.currentCellSize = Math.max(Math.floor(this.CELL * scale), 20);
+  }
   
   /* modal */  
-  showSetup(){ this.overB.classList.remove("visible"); this.setupB.classList.add("visible"); }  
+  showSetup(){ 
+    this.overB.classList.remove("visible"); 
+    this.setupB.classList.add("visible"); 
+    this.updateUndoButton(); // Update undo button when showing setup
+    this.updateDifficultyLabel(); // Initialize difficulty label
+  }
+
+  updateDifficultyLabel() {
+    const value = parseInt(this.difficultySlider.value);
+    const difficulty = this.getDifficultyFromValue(value);
+    this.difficultyLabel.textContent = `${difficulty} (${value})`;
+  }
+
+  getDifficultyFromValue(value) {
+    if (value < 20) return 'Easy';
+    if (value <= 70) return 'Medium';
+    if (value <= 99) return 'Hard';
+    return 'Perfect';
+  }
 }  
   
 // ────────────────────────────────────────────────────────────  
