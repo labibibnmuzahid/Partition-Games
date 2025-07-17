@@ -249,6 +249,7 @@ class CRIM_GUI{
         /* will be filled after the Setup modal */  
     this.cpuSide = 'None';   // 'Red' | 'Blue' | 'None'  
     this.vsCPU   = false;    // boolean convenience flag  
+    this.gameHistory = []; // Store previous game states for undo
 
   
     /* DOM handles */  
@@ -259,6 +260,7 @@ class CRIM_GUI{
     this.gameOverMsg=document.getElementById('game-over-message');  
     this.rowsInput=document.getElementById('rows-input');  
     this.helpPopover=document.getElementById('help-popover');
+    this.undoBtn=document.getElementById('undo-btn');
 
     /* buttons */  
     document.getElementById('start-game-btn')  
@@ -267,6 +269,7 @@ class CRIM_GUI{
         .addEventListener('click',()=>{SoundManager.play('click');this.showSetup();});  
     document.getElementById('play-again-btn')  
         .addEventListener('click',()=>{SoundManager.play('click');this.showSetup();});
+    this.undoBtn.addEventListener('click',()=>{SoundManager.play('click');this.undoMove();});
     
     /* partition generation */
     document.getElementById('generate-partition-btn')
@@ -319,6 +322,7 @@ class CRIM_GUI{
     this.setupBackdrop.classList.add('visible');  
     this.statusLabel.textContent='Waiting for start…';  
     this.clearBoard();  
+    this.updateUndoButton(); // Update undo button when showing setup
   }  
   startFromInput(){  
     try{  
@@ -331,10 +335,12 @@ class CRIM_GUI{
 
       this.state=new GameState(nums);  
       this.setupBackdrop.classList.remove('visible');  
+      this.clearGameHistory(); // Clear undo history for new game
       this.redraw();  
       const playerLetter = this.state.player === Player.RED ? 'A' : 'B';
       const playerType = this.vsCPU && this.state.player === this.cpuSide ? 'Computer' : 'Human';
       this.statusLabel.textContent = `Player ${playerLetter} (${playerType}) to move`;
+      this.updateUndoButton();
     }catch{  
       alert('Please enter positive integers separated by spaces.');  
     }
@@ -389,6 +395,71 @@ class CRIM_GUI{
     }
     
     this.rowsInput.value = partition.join(' ');
+  }
+
+  // Game state management for undo functionality
+  saveGameState() {
+    if (!this.state) return;
+    
+    // Deep copy the current game state
+    const fragmentsCopy = this.state.fragments.map(frag => {
+      const gridCopy = frag.grid.map(row => [...row]);
+      const fragCopy = new Fragment(gridCopy, frag.x, frag.y);
+      return fragCopy;
+    });
+    
+    const gameState = {
+      fragments: fragmentsCopy,
+      player: this.state.player
+    };
+    
+    this.gameHistory.push(gameState);
+    this.updateUndoButton();
+  }
+
+  undoMove() {
+    if (!this.state || this.gameHistory.length === 0 || !this.canUndo()) {
+      return;
+    }
+
+    SoundManager.play('click');
+    
+    // Restore the previous game state
+    const previousState = this.gameHistory.pop();
+    
+    // Restore fragments and player
+    this.state.fragments = previousState.fragments;
+    this.state.player = previousState.player;
+    
+    // Redraw the board and update UI
+    this.redraw();
+    const playerLetter = this.state.player === Player.RED ? 'A' : 'B';
+    const playerType = this.vsCPU && this.state.player === this.cpuSide ? 'Computer' : 'Human';
+    this.statusLabel.textContent = `Player ${playerLetter} (${playerType}) to move`;
+    this.updateUndoButton();
+  }
+
+  canUndo() {
+    return this.state && this.gameHistory.length > 0 && 
+           !(this.vsCPU && this.state.player === this.cpuSide);
+  }
+
+  updateUndoButton() {
+    if (!this.undoBtn) return;
+    
+    const canUndo = this.canUndo();
+    
+    if (this.state && this.gameHistory.length >= 0) {
+      this.undoBtn.style.display = 'flex';
+      this.undoBtn.disabled = !canUndo;
+    } else {
+      this.undoBtn.style.display = 'none';
+    }
+  }
+
+  clearGameHistory() {
+    this.gameHistory = [];
+    this.updateUndoButton();
   }
 
   applyTileTheme() {
@@ -487,7 +558,10 @@ class CRIM_GUI{
     handleLabelClick(ev) {  
   const info = this.idToAddress.get(ev.currentTarget.id);  
   if (!info || !this.state) return;  
-  
+
+  // Save the current state before making a move (for undo functionality)
+  this.saveGameState();
+
   SoundManager.play('click');  
   ev.currentTarget.classList.add(info.kind === 'row' ? 'row-win' : 'col-win');  
   
@@ -504,6 +578,7 @@ class CRIM_GUI{
       this.gameOverBackdrop.classList.add('visible');  
       this.state = null;  
       this.clearBoard();  
+      this.updateUndoButton();
       return;  
     }  
   
@@ -512,6 +587,7 @@ class CRIM_GUI{
     const playerLetter = this.state.player === Player.RED ? 'A' : 'B';
     const playerType = this.vsCPU && this.state.player === this.cpuSide ? 'Computer' : 'Human';
     this.statusLabel.textContent = `Player ${playerLetter} (${playerType}) to move`;  
+    this.updateUndoButton();
   
     /* 4 ─ if the computer is the one to move, let it think & act */  
     if (this.vsCPU && this.state.player === this.cpuSide) {  
@@ -522,6 +598,7 @@ class CRIM_GUI{
 
 
   aiTurnPerfect() {  
+  this.updateUndoButton(); // Update undo button state during AI turn
   const totalXor = xorAllFragments(this.state);  
   
   // scan every possible move  
