@@ -400,12 +400,12 @@ class CRIM_GUI{
         return;
       case 'square':
         // Placeholder - will be implemented later
-        alert("Square partitions are not yet implemented.");
-        return;
+        partition = square(n);
+        break;
       case 'hook':
         // Placeholder - will be implemented later
-        alert("Hook partitions are not yet implemented.");
-        return;
+        partition = hook(n);
+        break;
       case 'triangle':
         // Placeholder - will be implemented later
         alert("Triangle partitions are not yet implemented.");
