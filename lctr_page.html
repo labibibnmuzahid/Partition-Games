@@ -57,29 +57,33 @@
 
 <div id="setup-modal-backdrop" class="modal-backdrop">
     <div class="modal">
-        <h2>Game Setup</h2>
+        <div class="modal-header">
+            <h2>Game Setup</h2>
+            <button id="help-btn-modal" class="icon-button" aria-label="Help">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">  
+                    <path fill-rule="evenodd" d="M12 2.25A9.75 9.75 0 1021.75 12 9.762 9.762 0 0012 2.25zM12 18a.937.937 0 01-.938-.938.938.938 0 011.876 0A.938.938 0 0112 18zm1.434-3.876a.937.937 0 01-1.868-.372c.17-.852.683-1.323 1.284-1.877.61-.561 1.242-1.143 1.242-2.397 0-1.209-.974-2.187-2.192-2.187-1.1 0-1.954.53-2.378 1.417a.937.937 0 11-1.687-.802C8.299 6.44 9.86 5.25 11.896 5.25c2.27 0 4.06 1.774 4.06 4.062 0 2.046-1.2 3.089-2.018 3.838-.543.499-.809.746-.904 1.0z" clip-rule="evenodd"/>  
+                </svg> 
+            </button>
+        </div>
         <p>Enter a board configuration manually, or generate one randomly.</p>
         
-        <label for="rows-input">Row Lengths (e.g., 5 4 4 2)</label>
+        <label for="rows-input">Row Lengths</label>
         <input type="text" id="rows-input" value="5 4 4 2" placeholder="e.g., 5 4 4 2">
-        <button id="randomize-btn-general" class="secondary-button">Unsure? Generate a random board</button>
         
         <hr>
 
-        <label for="specific-number-input">Or, generate from a specific total:</label>
+        <label for="partition-type-select">Or, generate a partition:</label>
         <div class="input-group">
-            <input type="number" id="specific-number-input" placeholder="e.g., 25">
-            <button id="randomize-btn-specific">Generate Partition</button>
+            <select id="partition-type-select" class="partition-type-dropdown">
+                <option value="random">Random</option>
+                <option value="staircase">Staircase</option>
+                <option value="square">Square</option>
+                <option value="hook">Hook</option>
+            </select>
+            <input type="number" id="partition-number-input" placeholder="e.g., 25">
+            <button id="generate-partition-btn">Generate</button>
         </div>
-
-        <hr>
-
-        <label for="staircase-number-input">Or, get a perfect Staircse partition:</label>
-            <div class="input-group">
-                <input type="number" id="staircase-number-input" placeholder="e.g., 25">
-                <button id="staircase-btn-specific">Generate Partition</button>
-            </div>
-    
+        
         <hr>
 
         <label for="ai-select">Computer Player</label>
@@ -89,20 +93,11 @@
             <option value="None">None (Two Human Players)</option>
         </select>
 
-        <label for="difficulty-select">AI Difficulty</label>
-        <select id="difficulty-select">
-            <option value="Hard">Hard (Perfect Play)</option>
-            <option value="Medium" selected>Medium (Makes Mistakes)</option>
-            <option value="Easy">Easy (Very Random)</option>
-        </select>
-
-        <label for="theme-select">Tile Theme</label>
-        <select id="theme-select">
-            <option value="grass">Grass</option>
-            <option value="stone">Stone</option>
-            <option value="ice">Ice</option>
-        </select>
-
+        <label for="difficulty-slider">AI Difficulty: <span id="difficulty-label">Medium (50)</span></label>
+        <div class="slider-container">
+            <input type="range" id="difficulty-slider" min="1" max="100" value="50" class="difficulty-range">
+        </div>
+        
         <button id="start-game-btn" class="modal-btn">Start Game</button>
     </div>
 </div>
@@ -111,6 +106,9 @@
     <div class="modal">
         <h2 id="game-over-title">Game Over</h2>
         <p id="game-over-message">Player X wins!</p>
+        <button id="download-btn-modal" class="icon-button" aria-label="Download Game" title="Download Game History" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg> Download
+        </button>
         <button id="play-again-btn" class="modal-btn">Play Again</button>
     </div>
 </div>

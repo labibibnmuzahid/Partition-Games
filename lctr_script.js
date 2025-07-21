@@ -132,20 +132,19 @@ class ProLCTRGui {
         this.setupModal = document.getElementById('setup-modal-backdrop');
         this.gameOverModal = document.getElementById('game-over-modal-backdrop');
         this.rowsInput = document.getElementById('rows-input');
-        this.randomizeBtnGeneral = document.getElementById('randomize-btn-general');
-        this.specificNumberInput = document.getElementById('specific-number-input');
-        this.specificNumberInputStairCase = document.getElementById('staircase-number-input');
-        this.randomizeBtnSpecific = document.getElementById('randomize-btn-specific');
-        this.staircaseBtnSpecific = document.getElementById('staircase-btn-specific');
+        this.partitionTypeSelect = document.getElementById('partition-type-select');
+        this.partitionNumberInput = document.getElementById('partition-number-input');
+        this.generatePartitionBtn = document.getElementById('generate-partition-btn');
         this.aiSelect = document.getElementById('ai-select');
-        this.difficultySelect = document.getElementById('difficulty-select');
-        this.themeSelect = document.getElementById('theme-select');
+        this.difficultySlider = document.getElementById('difficulty-slider');
+        this.difficultyLabel = document.getElementById('difficulty-label');
         this.startGameBtn = document.getElementById('start-game-btn');
         this.playAgainBtn = document.getElementById('play-again-btn');
         this.gameOverMessage = document.getElementById('game-over-message');
         this.helpBtn = document.getElementById('help-btn');
         this.helpBtnModal = document.getElementById('help-btn-modal');
-        this.helpPopover = document.getElementById('help-popover'); 
+        this.helpPopover = document.getElementById('help-popover');
+        this.downloadBtnModal = document.getElementById('download-btn-modal');
     }
 
     bindEventListeners() {
@@ -153,24 +152,19 @@ class ProLCTRGui {
         this.newGameBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.playAgainBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.themeToggle.addEventListener('change', () => { SoundManager.play('click'); this.toggleTheme(); });
+        this.difficultySlider.addEventListener('input', () => this.updateDifficultyLabel());
         this.helpBtn.addEventListener('mouseenter', () => this.showHelp());
         this.helpBtn.addEventListener('mouseleave', () => this.hideHelp());
         if (this.helpBtnModal) {
             this.helpBtnModal.addEventListener('mouseenter', () => this.showHelp());
             this.helpBtnModal.addEventListener('mouseleave', () => this.hideHelp());
         }
-        if (this.randomizeBtnGeneral) {
-            this.randomizeBtnGeneral.addEventListener('click', () => this.generateGeneralRandomBoard());
+        if (this.generatePartitionBtn) {
+            this.generatePartitionBtn.addEventListener('click', () => this.generatePartition());
         }
-        if (this.randomizeBtnSpecific) {
-            this.randomizeBtnSpecific.addEventListener('click', () => this.generateSpecificRandomBoard());
+        if (this.downloadBtnModal) {
+            this.downloadBtnModal.addEventListener('click', () => { SoundManager.play('click'); this.downloadGame(); });
         }
-        if (this.staircaseBtnSpecific) {  
-            this.staircaseBtnSpecific  
-            .addEventListener('click',  
-                () => this.generateSpecificRandomBoardStairCase());  
-        }
-        
         // Add board interaction event listeners
         this.boardArea.addEventListener('mousemove', (event) => this.handleMouseMove(event));
         this.boardArea.addEventListener('mouseleave', () => this.handleMouseLeave());
@@ -184,7 +178,7 @@ class ProLCTRGui {
             if (nums.length === 0 || nums.some(n => isNaN(n) || n <= 0)) throw new Error("Invalid input");
             
             const aiSide = this.aiSelect.value === "None" ? null : this.aiSelect.value;
-            this.aiDifficulty = this.difficultySelect.value;
+            this.aiDifficulty = this.difficultySlider.value; // Changed to slider value
             this.gameCard.setAttribute('data-tile-theme', this.themeSelect.value);
 
             this.setupModal.classList.remove('visible');
@@ -203,7 +197,7 @@ class ProLCTRGui {
 
     generateSpecificRandomBoard() {
         SoundManager.play('click');
-        const n = parseInt(this.specificNumberInput.value, 10);
+        const n = parseInt(this.partitionNumberInput.value, 10);
         if (isNaN(n) || n <= 0 || n > 200) {
             alert("Please enter a positive number less than or equal to 200.");
             return;
@@ -215,7 +209,7 @@ class ProLCTRGui {
     generateSpecificRandomBoardStairCase() {  
     SoundManager.play('click');  
   
-    const n = parseInt(this.specificNumberInputStairCase.value, 10); // <-- fixed  
+    const n = parseInt(this.partitionNumberInput.value, 10); // <-- fixed  
     if (isNaN(n) || n <= 0 || n > 200) {  
         alert("Please enter a positive number less than or equal to 200.");  
         return;  
@@ -399,6 +393,36 @@ class ProLCTRGui {
     initTheme() { const savedTheme = localStorage.getItem('theme') || 'light'; document.documentElement.setAttribute('data-theme', savedTheme); this.themeToggle.checked = savedTheme === 'dark'; }
     toggleTheme() { const newTheme = this.themeToggle.checked ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', newTheme); localStorage.setItem('theme', newTheme); }
     showSetupModal() { this.gameOverModal.classList.remove('visible'); this.setupModal.classList.add('visible'); }
+    updateDifficultyLabel() {
+        const difficulty = this.difficultySlider.value;
+        this.difficultyLabel.textContent = `AI Difficulty: ${difficulty}`;
+    }
+    generatePartition() {
+        const partitionType = this.partitionTypeSelect.value;
+        const n = parseInt(this.partitionNumberInput.value, 10);
+        let partition;
+        if (partitionType === 'random') {
+            partition = randomPartition(n);
+        } else if (partitionType === 'staircase') {
+            partition = staircase(n);
+        } else {
+            alert("Please select a partition type.");
+            return;
+        }
+        this.rowsInput.value = partition.join(' ');
+    }
+    downloadGame() {
+        const gameState = JSON.stringify(this.game.board.rows);
+        const blob = new Blob([gameState], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'game_state.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
 }
 
 window.onload = () => {
