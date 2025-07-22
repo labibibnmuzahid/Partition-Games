@@ -136,11 +136,13 @@ class ProLCTRGui {
         this.hoveredMove = null;
         this.isAnimating = false;
         this.aiDifficulty = 'Medium';
+        this.gameHistory = [];
         
         this.getDOMElements();
         this.bindEventListeners();
         this.initTheme();
         SoundManager.init();
+        this.showSetupModal(); // Ensure modal is shown on load
     }
 
     getDOMElements() {
@@ -185,7 +187,10 @@ class ProLCTRGui {
             this.generatePartitionBtn.addEventListener('click', () => this.generatePartition());
         }
         if (this.downloadBtnModal) {
-            this.downloadBtnModal.addEventListener('click', () => { SoundManager.play('click'); this.downloadGame(); });
+            this.downloadBtnModal.addEventListener('click', () => { 
+                SoundManager.play('click'); 
+                this.downloadGame(); 
+            });
         }
         if (this.themeSelect) {
             this.themeSelect.addEventListener('change', () => this.applyTileTheme());
@@ -254,6 +259,7 @@ class ProLCTRGui {
     }  
 
     startGame(rows, aiSide) {
+        this.initialPartition = [...rows]; // Store the original partition for replay
         this.game = new Game(new Board(rows), aiSide);
         this.hoveredMove = null;
         this.isAnimating = false;
@@ -361,6 +367,7 @@ class ProLCTRGui {
     }
     
     finishMove(moveKind) {
+        this.saveGameState();
         const finished = this.game.makeMove(moveKind);
         this.isAnimating = false;
         if (finished) {
@@ -373,6 +380,19 @@ class ProLCTRGui {
         this.redrawBoard();
         this.updateStatus();
         if (this.game.isAiTurn()) { this.aiTurn(); }
+    }
+
+    saveGameState() {
+        if (!this.game) return;
+        const boardCopy = {
+            grid: this.game.board.rows.map(row => row)
+        };
+        const gameState = {
+            board: boardCopy,
+            currentIndex: this.game.currentIndex
+        };
+        this.gameHistory = this.gameHistory || [];
+        this.gameHistory.push(gameState);
     }
 
     redrawBoard() {
@@ -452,20 +472,132 @@ class ProLCTRGui {
         this.rowsInput.value = partition.join(' ');
     }
     downloadGame() {
-        const gameState = JSON.stringify(this.game.board.rows);
-        const blob = new Blob([gameState], { type: 'application/json' });
+        if (!this.game) return;
+        // Build the full move history (including current state)
+        const allStates = (this.gameHistory || []).map(state => {
+            let mask = state.board && state.board.grid ? state.board.grid : state.board;
+            return { mask, currentIndex: state.currentIndex };
+        });
+        // Add the current state
+        let currentMask = this.game.board.rows;
+        allStates.push({ mask: currentMask, currentIndex: this.game.currentIndex, timestamp: Date.now() });
+        // Generate HTML, pass initialPartition
+        const htmlContent = this.generateGameReplayHTML_LCTR(allStates, this.initialPartition);
+        // Download
+        const blob = new Blob([htmlContent], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'game_state.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `LCTR-Game-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.html`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    generateGameReplayHTML_LCTR(gameStates, initialPartition) {
+        const title = `LCTR Game Replay - ${new Date().toLocaleDateString()}`;
+        return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${title}</title>
+<style>
+ body{font-family:sans-serif;background:#fff;color:#111;margin:0;padding:20px;
+       min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+ .container{background:#fff;border-radius:20px;padding:30px;max-width:800px;width:100%;
+            box-shadow:0 4px 24px #0001;text-align:center;}
+ h1{margin-top:0;color:#111;letter-spacing:1px;}
+ .controls{margin:20px 0;display:flex;justify-content:center;align-items:center;
+           gap:20px;flex-wrap:wrap;}
+ button{padding:12px 20px;font-size:16px;border:none;border-radius:8px;
+        background:#eee;color:#111;cursor:pointer;transition:all .2s;}
+ button:hover{background:#ddd;transform:translateY(-2px);}
+ button:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+ .state-info{font-size:18px;margin:10px 0;font-weight:bold;color:#111;}
+ #game-canvas{border:2px solid #111;border-radius:12px;margin:20px auto;display:block;
+             background:#fff;box-shadow:0 8px 25px #0001;}
+ .instructions{margin-top:20px;font-size:14px;opacity:.7;line-height:1.6;}
+ .error{color:#b00020;background:#f8d7da;padding:12px;border-radius:8px;margin:20px 0;font-size:1.1em;}
+</style></head><body>
+<div class="container">
+ <h1>${title}</h1>
+ <div class="state-info">State <span id="current-state">1</span> of
+ <span id="total-states">${gameStates.length}</span></div>
+ <div class="controls">
+  <button id="first-btn" onclick="goToState(0)">⏮ First</button>
+  <button id="prev-btn"  onclick="previousState()">◀ Previous</button>
+  <button id="play-btn"  onclick="toggleAutoplay()">▶ Play</button>
+  <button id="next-btn"  onclick="nextState()">Next ▶</button>
+  <button id="last-btn"  onclick="goToState(gameStates.length-1)">Last ⏭</button>
+ </div>
+ <canvas id="game-canvas" width="400" height="400"></canvas>
+ <div id="error-message" class="error" style="display:none"></div>
+ <div class="instructions">
+  <strong>Navigation:</strong> Use ←/→ keys or the buttons above.<br>
+  <strong>Autoplay:</strong> Press Play to advance automatically.
+ </div>
+</div>
+<script>
+ const gameStates=${JSON.stringify(gameStates)};
+ const initialPartition=${JSON.stringify(initialPartition)};
+ let currentStateIndex=0,isPlaying=false,playInterval;
+ const CELL_SIZE=40,MARGIN=20;
+ const canvas=document.getElementById('game-canvas'),ctx=canvas.getContext('2d');
+ const errorDiv=document.getElementById('error-message');
+ function drawBoard(mask){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!Array.isArray(initialPartition)||!initialPartition.length){
+    errorDiv.textContent='Game Ended.';errorDiv.style.display='block';return;
+  }errorDiv.style.display='none';
+  const boardHeight=initialPartition.length;
+  const boardWidth=Math.max(...initialPartition, 0);
+  const canvasWidth=MARGIN*2+boardWidth*CELL_SIZE;
+  const canvasHeight=MARGIN*2+boardHeight*CELL_SIZE;
+  canvas.width=canvasWidth;
+  canvas.height=canvasHeight;
+  ctx.clearRect(0,0,canvasWidth,canvasHeight);
+  for(let r=0;r<boardHeight;r++){
+    const rowLen = initialPartition[r];
+    const maskLen = (mask && mask[r] !== undefined) ? (Array.isArray(mask[r]) ? mask[r].reduce((acc,v)=>acc+(v?1:0),0) : mask[r]) : 0;
+    for(let c=0;c<rowLen;c++){
+      const x=MARGIN+c*CELL_SIZE;
+      const y=MARGIN+r*CELL_SIZE;
+      ctx.fillStyle = c < maskLen ? '#111' : '#fff'; // black if present, white if removed
+      ctx.fillRect(x,y,CELL_SIZE,CELL_SIZE);
+    }
+  }
+  ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=1;
+  for(let r=0;r<=boardHeight;r++){const y=MARGIN+r*CELL_SIZE;ctx.beginPath();ctx.moveTo(MARGIN,y);ctx.lineTo(MARGIN+boardWidth*CELL_SIZE,y);ctx.stroke();}
+  for(let c=0;c<=boardWidth;c++){const x=MARGIN+c*CELL_SIZE;ctx.beginPath();ctx.moveTo(x,MARGIN);ctx.lineTo(x,MARGIN+boardHeight*CELL_SIZE);ctx.stroke();}
+  ctx.restore();
+ }
+ function updateDisplay(){
+  drawBoard(gameStates[currentStateIndex].mask);
+  document.getElementById('current-state').textContent=currentStateIndex+1;
+  document.getElementById('first-btn').disabled=currentStateIndex===0;
+  document.getElementById('prev-btn').disabled =currentStateIndex===0;
+  document.getElementById('next-btn').disabled =currentStateIndex===gameStates.length-1;
+  document.getElementById('last-btn').disabled =currentStateIndex===gameStates.length-1;
+ }
+ function goToState(i){if(i>=0&&i<gameStates.length){currentStateIndex=i;updateDisplay();}}
+ function nextState(){if(currentStateIndex<gameStates.length-1){currentStateIndex++;updateDisplay();}}
+ function previousState(){if(currentStateIndex>0){currentStateIndex--;updateDisplay();}}
+ function toggleAutoplay(){
+  const btn=document.getElementById('play-btn');
+  if(isPlaying){clearInterval(playInterval);isPlaying=false;btn.textContent='▶ Play';}
+  else{isPlaying=true;btn.textContent='⏸ Pause';
+    playInterval=setInterval(()=>{if(currentStateIndex<gameStates.length-1)nextState();else toggleAutoplay();},1000);}
+ }
+ document.addEventListener('keydown',e=>{
+   if(e.key==='ArrowLeft'){e.preventDefault();previousState();}
+   else if(e.key==='ArrowRight'){e.preventDefault();nextState();}
+   else if(e.key===' '){e.preventDefault();toggleAutoplay();}
+ });
+ updateDisplay();
+</script></body></html>`;
     }
 }
 
-window.onload = () => {
-    const app = new ProLCTRGui();
-    app.showSetupModal();
-};
+window.addEventListener('DOMContentLoaded', () => {
+    window.lctrApp = new ProLCTRGui();
+});

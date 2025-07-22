@@ -51,17 +51,18 @@ function staircase(n) {
 function generatePartition() {
   const partitionTypeSelect = document.getElementById('partition-type-select');
   const partitionNumberInput = document.getElementById('partition-number-input');
-  
+  const rowsInput = document.getElementById('rows-input');
+
   const partitionType = partitionTypeSelect.value;
   const n = parseInt(partitionNumberInput.value, 10);
-  
+
   if (isNaN(n) || n <= 0 || n > 200) {
     alert("Please enter a positive number less than or equal to 200.");
     return;
   }
-  
+
   let partition;
-  
+
   switch (partitionType) {
     case 'random':
       partition = randomPartition(n);
@@ -69,28 +70,24 @@ function generatePartition() {
     case 'staircase':
       partition = staircase(n);
       break;
+    case 'square':
+      partition = square(n);
+      break;
+    case 'hook':
+      partition = hook(n);
+      break;
     case 'rectangle':
-      // Placeholder - will be implemented later
       alert("Rectangle partitions are not yet implemented.");
       return;
-    case 'square':
-      // Placeholder - will be implemented later
-      alert("Square partitions are not yet implemented.");
-      return;
-    case 'hook':
-      // Placeholder - will be implemented later
-      alert("Hook partitions are not yet implemented.");
-      return;
     case 'triangle':
-      // Placeholder - will be implemented later
       alert("Triangle partitions are not yet implemented.");
       return;
     default:
       alert("Unknown partition type selected.");
       return;
   }
-  
-  this.rowsIn.value = partition.join(' ');
+
+  rowsInput.value = partition.join(' ');
 }
 
 // Game state management for undo functionality
@@ -145,10 +142,23 @@ function clearGameHistory() {
   this.gameHistory = [];
   this.updateUndoButton();
 }
+
+
+  
+function randomPartition(n) {
+  let parts = [];
+  let remaining = n;
+  let maxPart = n;
+  
+  while (remaining > 0) {
+    let part = randomInt(1, Math.min(remaining, maxPart));
+    parts.push(part);
+    remaining -= part;
+    maxPart = part;
+  }
   
   return parts.sort((a, b) => b - a); // Sort descending like other games
 }
-
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -343,7 +353,7 @@ class IRTGui {
   
     /* state */  
     this.game=null; this.hoverMove=null; this.anim=false;  
-    this.gameHistory = []; // Store previous game states for undo
+    this.gameHistory = []; // Store previous game states for replay
   
     /* boot */  
     this.initTheme(); Sound.init(); this.showSetup();
@@ -367,9 +377,10 @@ class IRTGui {
     }  
     const ai = this.aiSel.value==="None"?null:this.aiSel.value;  
     this.game = new Game(rows, ai, this.getDifficultyFromValue(parseInt(this.difficultySlider.value)));  
-
     this.setupB.classList.remove("visible");  
-    this.clearGameHistory(); // Clear undo history for new game
+    this.initialPartition = rows.slice(); // Always store the initial partition
+    this.gameHistory = [];
+    this.saveGameState();
     this.draw(); this.updateStatus();  
     this.updateUndoButton();
     if (this.game.isAiTurn()) this.aiTurn();
@@ -549,17 +560,18 @@ class IRTGui {
   generatePartition() {
     const partitionTypeSelect = document.getElementById('partition-type-select');
     const partitionNumberInput = document.getElementById('partition-number-input');
-    
+    const rowsInput = document.getElementById('rows-input');
+
     const partitionType = partitionTypeSelect.value;
     const n = parseInt(partitionNumberInput.value, 10);
-    
+
     if (isNaN(n) || n <= 0 || n > 200) {
       alert("Please enter a positive number less than or equal to 200.");
       return;
     }
-    
+
     let partition;
-    
+
     switch (partitionType) {
       case 'random':
         partition = this.randomPartition(n);
@@ -567,42 +579,31 @@ class IRTGui {
       case 'staircase':
         partition = this.staircase(n);
         break;
-      case 'rectangle':
-        // Placeholder - will be implemented later
-        alert("Rectangle partitions are not yet implemented.");
-        return;
       case 'square':
-        // Placeholder - will be implemented later
         partition = this.square(n);
         break;
       case 'hook':
-        // Placeholder - will be implemented later
         partition = this.hook(n);
         break;
+      case 'rectangle':
+        alert("Rectangle partitions are not yet implemented.");
+        return;
       case 'triangle':
-        // Placeholder - will be implemented later
         alert("Triangle partitions are not yet implemented.");
         return;
       default:
         alert("Unknown partition type selected.");
         return;
     }
-    
-    this.rowsIn.value = partition.join(' ');
+
+    rowsInput.value = partition.join(' ');
   }
 
   // Game state management for undo functionality
   saveGameState() {
     if (!this.game) return;
-    
-    // Deep copy the current game state
-    const gameState = {
-      board: this.game.board.clone(),
-      turn: this.game.turn
-    };
-    
-    this.gameHistory.push(gameState);
-    this.updateUndoButton();
+    // Save a deep copy of the current rows
+    this.gameHistory.push(this.game.board.rows.slice());
   }
 
   undoMove() {
@@ -612,8 +613,8 @@ class IRTGui {
 
     // Restore the previous game state
     const previousState = this.gameHistory.pop();
-    this.game.board = previousState.board;
-    this.game.turn = previousState.turn;
+    this.game.board = new Board(previousState); // Create a new Board instance from the previous state
+    this.game.turn = previousState.length - 1; // Turn is based on the number of moves made
     
     // Redraw and update UI
     this.draw();
@@ -700,4 +701,146 @@ class IRTGui {
 // ────────────────────────────────────────────────────────────  
 // 6.  Boot  
 // ────────────────────────────────────────────────────────────  
-window.onload = ()=>{ new IRTGui(); };  
+function downloadGameIRT() {
+  if (!window.irtApp || !window.irtApp.game) return;
+  const gameState = JSON.stringify(window.irtApp.game.board.rows);
+  const blob = new Blob([gameState], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'game_state.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function downloadGameHTML_IRT() {
+  if (!window.irtApp || !window.irtApp.gameHistory || window.irtApp.gameHistory.length === 0) {
+    alert('No game state found.');
+    return;
+  }
+  let history = window.irtApp.gameHistory.slice();
+  const initialPartition = window.irtApp.initialPartition || history[0] || [];
+  // Remove the last state if it is empty (all rows are zero or array is empty)
+  const isEmpty = arr => Array.isArray(arr) && (arr.length === 0 || arr.every(x => x === 0));
+  if (history.length > 1 && isEmpty(history[history.length - 1])) {
+    history.pop();
+  }
+  const title = `IRT Game Replay - ${new Date().toLocaleDateString()}`;
+  let html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${title}</title>
+<style>
+ body{font-family:sans-serif;background:#fff;color:#111;margin:0;padding:20px;
+       min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+ .container{background:#fff;border-radius:20px;padding:30px;max-width:800px;width:100%;
+            box-shadow:0 4px 24px #0001;text-align:center;}
+ h1{margin-top:0;color:#111;letter-spacing:1px;}
+ .controls{margin:20px 0;display:flex;justify-content:center;align-items:center;
+           gap:20px;flex-wrap:wrap;}
+ button{padding:12px 20px;font-size:16px;border:none;border-radius:8px;
+        background:#eee;color:#111;cursor:pointer;transition:all .2s;}
+ button:hover{background:#ddd;transform:translateY(-2px);}
+ button:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+ .state-info{font-size:18px;margin:10px 0;font-weight:bold;color:#111;}
+ #game-canvas{border:2px solid #111;border-radius:12px;margin:20px auto;display:block;
+             background:#fff;box-shadow:0 8px 25px #0001;}
+ .instructions{margin-top:20px;font-size:14px;opacity:.7;line-height:1.6;}
+ .error{color:#b00020;background:#f8d7da;padding:12px;border-radius:8px;margin:20px 0;font-size:1.1em;}
+</style></head><body>
+<div class="container">
+ <h1>${title}</h1>
+ <div class="state-info">State <span id="current-state">1</span> of
+ <span id="total-states">${history.length}</span></div>
+ <div class="controls">
+  <button id="first-btn" onclick="goToState(0)">⏮ First</button>
+  <button id="prev-btn"  onclick="previousState()">◀ Previous</button>
+  <button id="play-btn"  onclick="toggleAutoplay()">▶ Play</button>
+  <button id="next-btn"  onclick="nextState()">Next ▶</button>
+  <button id="last-btn"  onclick="goToState(history.length-1)">Last ⏭</button>
+ </div>
+ <canvas id="game-canvas" width="400" height="400"></canvas>
+ <div id="error-message" class="error" style="display:none"></div>
+ <div class="instructions">
+  <strong>Navigation:</strong> Use ←/→ keys or the buttons above.<br>
+  <strong>Autoplay:</strong> Press Play to advance automatically.
+ </div>
+</div>
+<script>
+ const history=${JSON.stringify(history)};
+ const initialPartition=${JSON.stringify(initialPartition)};
+ let currentStateIndex=0,isPlaying=false,playInterval;
+ const CELL_SIZE=40,MARGIN=20;
+ const canvas=document.getElementById('game-canvas'),ctx=canvas.getContext('2d');
+ const errorDiv=document.getElementById('error-message');
+ function drawBoard(rows){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!Array.isArray(initialPartition)||!initialPartition.length){
+    errorDiv.textContent='No valid game state found.';errorDiv.style.display='block';return;
+  }errorDiv.style.display='none';
+  const boardHeight=initialPartition.length;
+  const boardWidth=Math.max(...initialPartition, 0);
+  const canvasWidth=MARGIN*2+boardWidth*CELL_SIZE;
+  const canvasHeight=MARGIN*2+boardHeight*CELL_SIZE;
+  canvas.width=canvasWidth;
+  canvas.height=canvasHeight;
+  ctx.clearRect(0,0,canvasWidth,canvasHeight);
+  for(let r=0;r<boardHeight;r++){
+    const rowLen = initialPartition[r];
+    const maskLen = (rows && rows[r] !== undefined) ? rows[r] : 0;
+    for(let c=0;c<rowLen;c++){
+      const x=MARGIN+c*CELL_SIZE;
+      const y=MARGIN+r*CELL_SIZE;
+      ctx.fillStyle = c < maskLen ? '#111' : '#fff'; // black if present, white if removed
+      ctx.fillRect(x,y,CELL_SIZE,CELL_SIZE);
+    }
+  }
+  ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=1;
+  for(let r=0;r<=boardHeight;r++){const y=MARGIN+r*CELL_SIZE;ctx.beginPath();ctx.moveTo(MARGIN,y);ctx.lineTo(MARGIN+boardWidth*CELL_SIZE,y);ctx.stroke();}
+  for(let c=0;c<=boardWidth;c++){const x=MARGIN+c*CELL_SIZE;ctx.beginPath();ctx.moveTo(x,MARGIN);ctx.lineTo(x,MARGIN+boardHeight*CELL_SIZE);ctx.stroke();}
+  ctx.restore();
+ }
+ function updateDisplay(){
+  drawBoard(history[currentStateIndex]);
+  document.getElementById('current-state').textContent=currentStateIndex+1;
+  document.getElementById('first-btn').disabled=currentStateIndex===0;
+  document.getElementById('prev-btn').disabled =currentStateIndex===0;
+  document.getElementById('next-btn').disabled =currentStateIndex===history.length-1;
+  document.getElementById('last-btn').disabled =currentStateIndex===history.length-1;
+ }
+ function goToState(i){if(i>=0&&i<history.length){currentStateIndex=i;updateDisplay();}}
+ function nextState(){if(currentStateIndex<history.length-1){currentStateIndex++;updateDisplay();}}
+ function previousState(){if(currentStateIndex>0){currentStateIndex--;updateDisplay();}}
+ function toggleAutoplay(){
+  const btn=document.getElementById('play-btn');
+  if(isPlaying){clearInterval(playInterval);isPlaying=false;btn.textContent='▶ Play';}
+  else{isPlaying=true;btn.textContent='⏸ Pause';
+    playInterval=setInterval(()=>{if(currentStateIndex<history.length-1)nextState();else toggleAutoplay();},1000);}
+ }
+ document.addEventListener('keydown',e=>{
+   if(e.key==='ArrowLeft'){e.preventDefault();previousState();}
+   else if(e.key==='ArrowRight'){e.preventDefault();nextState();}
+   else if(e.key===' '){e.preventDefault();toggleAutoplay();}
+ });
+ updateDisplay();
+</script></body></html>`;
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'irt_game.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+window.addEventListener('load', () => {
+  const btn = document.getElementById('download-btn');
+  if (btn) btn.addEventListener('click', downloadGameIRT);
+});
+window.addEventListener('load', () => {
+  const btn = document.getElementById('download-btn');
+  if (btn) btn.addEventListener('click', downloadGameHTML_IRT);
+});
+window.onload = ()=>{ window.irtApp = new IRTGui(); };  
