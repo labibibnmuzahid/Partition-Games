@@ -453,11 +453,13 @@ class SatoWelterGui {
     toggleTheme() { const newTheme = this.themeToggle.checked ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', newTheme); localStorage.setItem('theme', newTheme); }
     showSetupModal() { 
         this.gameOverModal.classList.remove('visible'); 
+        
+        // Clear any inline styles that might override the CSS
+        this.setupModal.style.opacity = '';
+        this.setupModal.style.visibility = '';
+        
         this.setupModal.classList.add('visible');
         this.statusLabel.textContent = 'Waiting for start…';
-        // Hide buttons when showing setup
-        if (this.undoBtn) this.undoBtn.style.display = 'none';
-        if (this.downloadBtn) this.downloadBtn.style.display = 'none';
     }
     updateDifficultyLabel() {
         const difficulty = this.difficultySlider.value;
@@ -560,23 +562,159 @@ class SatoWelterGui {
     downloadGame() {
         if (!this.game) return;
         
-        const gameData = {
-            currentBoard: this.game.getBoard().grid,
-            gameHistory: this.gameHistory,
-            currentPlayer: this.game.currentPlayer,
-            aiPlayer: this.game.aiIndex !== null ? Game.PLAYERS[this.game.aiIndex] : null
-        };
-        
-        const gameState = JSON.stringify(gameData, null, 2);
-        const blob = new Blob([gameState], { type: 'application/json' });
+        const html = this.generateGameReplayHTML();
+        const blob = new Blob([html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'sato_welter_game.json';
+        a.download = `Sato-Welter-Game-${Date.now()}.html`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    generateGameReplayHTML() {
+        if (!this.game) return '';
+
+        // Build game states including current state
+        const gameStates = [...this.gameHistory];
+        
+        // Add current state
+        const currentBoardState = {
+            board: {
+                grid: this.game.getBoard().grid.map(row => [...row])
+            },
+            currentPlayer: this.game.currentPlayer
+        };
+        gameStates.push(currentBoardState);
+
+        const title = `Sato-Welter Game Replay - ${new Date().toLocaleDateString()}`;
+
+        return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${title}</title>
+<style>
+ body{font-family:sans-serif;background:#fff;color:#111;margin:0;padding:20px;
+       min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+ .container{background:#fff;border-radius:20px;padding:30px;max-width:800px;width:100%;
+            box-shadow:0 4px 24px #0001;text-align:center;}
+ h1{margin-top:0;color:#111;letter-spacing:1px;}
+ .controls{margin:20px 0;display:flex;justify-content:center;align-items:center;
+           gap:20px;flex-wrap:wrap;}
+ button{padding:12px 20px;font-size:16px;border:none;border-radius:8px;
+        background:#eee;color:#111;cursor:pointer;transition:all .2s;}
+ button:hover{background:#ddd;transform:translateY(-2px);}
+ button:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+ .state-info{font-size:18px;margin:10px 0;font-weight:bold;color:#111;}
+ #game-canvas{border:2px solid #111;border-radius:12px;margin:20px auto;display:block;
+             background:#fff;box-shadow:0 8px 25px #0001;}
+ .instructions{margin-top:20px;font-size:14px;opacity:.7;line-height:1.6;}
+ .error{color:#b00020;background:#f8d7da;padding:12px;border-radius:8px;margin:20px 0;font-size:1.1em;}
+</style></head><body>
+<div class="container">
+ <h1>${title}</h1>
+ <div class="state-info">State <span id="current-state">1</span> of 
+ <span id="total-states">${gameStates.length}</span></div>
+ <div class="controls">
+  <button id="first-btn" onclick="goToState(0)">⏮ First</button>
+  <button id="prev-btn"  onclick="previousState()">◀ Previous</button>
+  <button id="play-btn"  onclick="toggleAutoplay()">▶ Play</button>
+  <button id="next-btn"  onclick="nextState()">Next ▶</button>
+  <button id="last-btn"  onclick="goToState(gameStates.length-1)">Last ⏭</button>
+ </div>
+ <canvas id="game-canvas" width="400" height="400"></canvas>
+ <div id="error-message" class="error" style="display:none"></div>
+ <div class="instructions">
+  <strong>Navigation:</strong> Use ←/→ keys or the buttons above.<br>
+  <strong>Autoplay:</strong> Press Play to advance automatically.
+ </div>
+</div>
+<script>
+ const gameStates=${JSON.stringify(gameStates)};
+ let currentStateIndex=0,isPlaying=false,playInterval;
+ const CELL_SIZE=40,MARGIN=20;
+ const canvas=document.getElementById('game-canvas'),ctx=canvas.getContext('2d');
+ const errorDiv=document.getElementById('error-message');
+ 
+ function drawBoard(boardState){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!boardState||!boardState.board||!boardState.board.grid){
+    errorDiv.textContent='Invalid board state.';errorDiv.style.display='block';return;
+  }errorDiv.style.display='none';
+  
+  const grid=boardState.board.grid;
+  // Find all squares
+  const squares=[];
+  for(let r=0;r<grid.length;r++){
+    for(let c=0;c<grid[r].length;c++){
+      if(grid[r][c]===1)squares.push({r,c});
+    }
+  }
+  
+  if(squares.length===0){
+    ctx.fillStyle='#999';ctx.font='16px sans-serif';ctx.textAlign='center';
+    ctx.fillText('Game Ended - No squares remaining',canvas.width/2,canvas.height/2);
+    return;
+  }
+  
+  // Calculate board dimensions
+  const maxRow=Math.max(...squares.map(s=>s.r));
+  const maxCol=Math.max(...squares.map(s=>s.c));
+  const boardWidth=(maxCol+1)*CELL_SIZE;
+  const boardHeight=(maxRow+1)*CELL_SIZE;
+  
+  // Center the board
+  const offsetX=(canvas.width-boardWidth)/2;
+  const offsetY=(canvas.height-boardHeight)/2;
+  
+  // Draw squares
+  for(const {r,c} of squares){
+    const x=offsetX+c*CELL_SIZE;
+    const y=offsetY+r*CELL_SIZE;
+    
+    ctx.fillStyle='#111';
+    ctx.fillRect(x,y,CELL_SIZE,CELL_SIZE);
+  }
+  
+  // Draw grid lines
+  ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=1;
+  for(let r=0;r<=maxRow+1;r++){
+    const yy=offsetY+r*CELL_SIZE;
+    ctx.beginPath();ctx.moveTo(offsetX,yy);ctx.lineTo(offsetX+boardWidth,yy);ctx.stroke();
+  }
+  for(let c=0;c<=maxCol+1;c++){
+    const xx=offsetX+c*CELL_SIZE;
+    ctx.beginPath();ctx.moveTo(xx,offsetY);ctx.lineTo(xx,offsetY+boardHeight);ctx.stroke();
+  }
+  ctx.restore();
+ }
+ 
+ function updateDisplay(){
+  drawBoard(gameStates[currentStateIndex]);
+  document.getElementById('current-state').textContent=currentStateIndex+1;
+  document.getElementById('first-btn').disabled=currentStateIndex===0;
+  document.getElementById('prev-btn').disabled =currentStateIndex===0;
+  document.getElementById('next-btn').disabled =currentStateIndex===gameStates.length-1;
+  document.getElementById('last-btn').disabled =currentStateIndex===gameStates.length-1;
+ }
+ function goToState(i){if(i>=0&&i<gameStates.length){currentStateIndex=i;updateDisplay();}}
+ function nextState(){if(currentStateIndex<gameStates.length-1){currentStateIndex++;updateDisplay();}}
+ function previousState(){if(currentStateIndex>0){currentStateIndex--;updateDisplay();}}
+ function toggleAutoplay(){
+  const btn=document.getElementById('play-btn');
+  if(isPlaying){clearInterval(playInterval);isPlaying=false;btn.textContent='▶ Play';}
+  else{isPlaying=true;btn.textContent='⏸ Pause';
+    playInterval=setInterval(()=>{if(currentStateIndex<gameStates.length-1)nextState();else toggleAutoplay();},1000);}
+ }
+ document.addEventListener('keydown',e=>{
+   if(e.key==='ArrowLeft'){e.preventDefault();previousState();}
+   else if(e.key==='ArrowRight'){e.preventDefault();nextState();}
+   else if(e.key===' '){e.preventDefault();toggleAutoplay();}
+ });
+ updateDisplay();
+</script></body></html>`;
     }
 }
 
