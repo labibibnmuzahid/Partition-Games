@@ -101,7 +101,7 @@ class ProLCTRGui {
         this.boardArea = document.getElementById('board-area');
         this.aiThinkingIndicator = document.getElementById('ai-thinking-indicator');
         this.newGameBtn = document.getElementById('new-game-btn');
-        this.themeSelect = document.getElementById('theme-select');
+        this.cycleThemeBtn = document.getElementById('cycle-theme-btn');
         this.setupModal = document.getElementById('setup-modal-backdrop');
         this.gameOverModal = document.getElementById('game-over-modal-backdrop');
         this.rowsInput = document.getElementById('rows-input');
@@ -137,19 +137,62 @@ class ProLCTRGui {
         if (this.downloadBtnModal) {
             this.downloadBtnModal.addEventListener('click', () => { SoundManager.play('click'); this.downloadGame(); });
         }
-        if (this.themeSelect) {
-            this.themeSelect.addEventListener('change', () => this.applyTileTheme());
+        
+        // Theme cycling functionality
+        if (this.cycleThemeBtn) {
+            const themes = [
+                { name: 'grass', icon: '🔥' },
+                { name: 'stone', icon: '🪨' },
+                { name: 'ice', icon: '🧊' }
+            ];
+            let currentThemeIndex = 0;
+
+            // A reusable function to update the theme
+            const updateTheme = (newIndex) => {
+                // This formula correctly wraps the index in both directions (forwards and backwards)
+                currentThemeIndex = (newIndex + themes.length) % themes.length;
+                
+                const newTheme = themes[currentThemeIndex];
+                
+                // Update the button's text to show the current theme
+                this.cycleThemeBtn.innerHTML = `[Tiles: ${newTheme.icon}]`;
+                
+                // Apply the theme to the game card
+                if (this.gameCard) {
+                    this.gameCard.setAttribute('data-tile-theme', newTheme.name);
+                }
+            };
+
+            // 1. Handle Clicks
+            this.cycleThemeBtn.addEventListener('click', () => {
+                // Go to the next theme
+                updateTheme(currentThemeIndex + 1);
+            });
+
+            // 2. Handle Mouse Wheel Scrolling
+            this.cycleThemeBtn.addEventListener('wheel', (event) => {
+                // Prevent the default browser action (scrolling the page)
+                event.preventDefault();
+
+                if (event.deltaY < 0) {
+                    // Scrolled up: go to the previous theme
+                    updateTheme(currentThemeIndex - 1);
+                } else {
+                    // Scrolled down: go to the next theme
+                    updateTheme(currentThemeIndex + 1);
+                }
+            });
+
+            // Set the initial theme when the game loads
+            updateTheme(currentThemeIndex);
         }
+        
         this.boardArea.addEventListener('mousemove', (event) => this.handleMouseMove(event));
         this.boardArea.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.boardArea.addEventListener('click', () => this.handleMouseClick());
     }
 
-    applyTileTheme() {
-        if (this.themeSelect && this.gameCard) {
-            this.gameCard.setAttribute('data-tile-theme', this.themeSelect.value);
-        }
-    }
+
 
     processSetup() {
         try {
@@ -163,7 +206,6 @@ class ProLCTRGui {
                          this.aiSelect.value === "A" ? "Alice" :
                          this.aiSelect.value === "B" ? "Bob" : null;
             this.aiDifficulty = this.difficultySlider.value;
-            this.applyTileTheme();
             this.setupModal.classList.remove('visible');
             this.startGame(nums, aiSide);
         } catch (e) {
