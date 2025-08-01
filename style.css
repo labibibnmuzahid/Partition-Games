@@ -139,7 +139,8 @@ main {
 
 .hero h1 {
     font-size: 32px;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     color: var(--orange);
     margin-bottom: 10px;
 }
@@ -166,7 +167,7 @@ main {
 }
 
 .section-title::before {
-    /* content: "## "; */
+    content: "## ";
     color: var(--orange);
 }
 
@@ -201,6 +202,11 @@ main {
     margin-bottom: 20px;
     font-size: 13px;
     line-height: 1.5;
+    font-family: "Inter Tight", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 300;
+    font-style: normal;
+    text-transform: lowercase;
 }
 
 .play-button {
@@ -353,6 +359,7 @@ footer {
 .about-popover-content {
     padding: 25px;
     position: relative;
+    text-transform: lowercase;
 }
 
 .close-btn {
@@ -407,6 +414,21 @@ footer {
 /* Position header content relatively for popover */
 .header-content {
     position: relative;
+}
+
+
+.inter-tight-light {
+    font-family: "Inter Tight", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 300;
+    font-style: normal;
+}
+
+.about-popover-content p {
+    font-family: "Inter Tight", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 300;
+    font-style: normal;
 }
 
 /* Responsive */
