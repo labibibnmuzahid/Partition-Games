@@ -1,6 +1,5 @@
 // --- CORE GAME LOGIC ---
-
-// Front page functionality
+// This section contains the fundamental rules and AI logic for the LCTR game.
 
 class Board {
     constructor(rows) { this.rows = [...rows]; }
@@ -16,6 +15,7 @@ class Board {
     }
     asTuple() { return JSON.stringify(this.rows); }
 }
+
 const grundyMemo = new Map();
 function grundy(position) {
     if (position === '[]') return 0;
@@ -29,6 +29,7 @@ function grundy(position) {
     grundyMemo.set(position, g);
     return g;
 }
+
 function perfectMove(position) {
     if (position === '[]') throw new Error("No legal move");
     const posArray = JSON.parse(position);
@@ -38,45 +39,22 @@ function perfectMove(position) {
         if (grundy(childRow) === 0) return "row";
         if (grundy(childCol) === 0) return "col";
     }
+    // If it's a losing position, make any legal move (prefer row to be deterministic)
     return posArray.length > 0 ? "row" : "col";
 }
 
-function staircase(n) {
-  let parts = []; 
-  let t = n; 
-  
-  while (t >= 1) 
-  {
-    parts.push(t);
-    t = t - 1; 
-  }
-  
-  return parts; // Sort descending like other games
-}
+// --- PARTITION GENERATION UTILITIES ---
 
-function square(n) {
-    let parts = [];
-    let t = n;
-    while (t >= 1) {
-        parts.push(n);
-        t = t - 1;
-    }
-    return parts;
-}
+function staircase(n) { let parts = []; let t = n; while (t >= 1) { parts.push(t); t = t - 1; } return parts; }
+function square(n) { let parts = []; let t = n; while (t >= 1) { parts.push(n); t = t - 1; } return parts; }
+function hook(n) { let parts = []; let t = n; parts.push(t); while (t >= 2) { parts.push(1); t = t - 1; } return parts; }
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randomPartition(n) { let parts = []; let remaining = n; let maxPart = n; while (remaining > 0) { let part = randomInt(1, Math.min(remaining, maxPart)); parts.push(part); remaining -= part; maxPart = part; } return parts.sort((a, b) => b - a); }
 
-function hook(n) {
-    let parts = [];
-    let t = n;
-    parts.push(t);
-    while (t >= 2) {
-        parts.push(1);
-        t = t - 1;
-    }
-    return parts;
-}
+// --- GAME CLASS ---
 
 class Game {
-    static PLAYERS = ["A", "B"];
+    static PLAYERS = ["Alice", "Bob"];
     constructor(board, aiPlayer) {
         this.board = board;
         this.currentIndex = 0;
@@ -94,55 +72,27 @@ class Game {
     }
 }
 
-// --- RANDOM PARTITION UTILITIES ---
-function randomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function randomPartition(n) {
-    let parts = [];
-    let remaining = n;
-    let maxPart = n;
-    
-    while (remaining > 0) {
-        let part = randomInt(1, Math.min(remaining, maxPart));
-        parts.push(part);
-        remaining -= part;
-        maxPart = part;
-    }
-    
-    return parts.sort((a, b) => b - a); // Sort descending like other games
-}
-
-// --- SOUND MANAGER ---
-const SoundManager = {
-    sounds: {},
-    init() {
-        // Sound effects disabled
-    },
-    play(soundName) {
-        // Sound effects disabled
-    }
-};
+// --- SOUND MANAGER (Placeholder) ---
+const SoundManager = { init() {}, play(soundName) {} };
 
 // --- GUI CONTROLLER ---
 class ProLCTRGui {
     constructor() {
         this.CELL = 40;
+        this.GAP = 1; // Small gap between tiles to prevent border overlap
         this.MARGIN = 20;
         this.ANIMATION_MS = 500;
         this.AI_THINK_MS = 800;
         this.game = null;
         this.hoveredMove = null;
         this.isAnimating = false;
-        this.aiDifficulty = 'Medium';
+        this.aiDifficulty = '50';
         this.gameHistory = [];
         
         this.getDOMElements();
         this.bindEventListeners();
-        this.initTheme();
         SoundManager.init();
-        this.showSetupModal(); // Ensure modal is shown on load
+        this.showSetupModal();
     }
 
     getDOMElements() {
@@ -151,8 +101,7 @@ class ProLCTRGui {
         this.boardArea = document.getElementById('board-area');
         this.aiThinkingIndicator = document.getElementById('ai-thinking-indicator');
         this.newGameBtn = document.getElementById('new-game-btn');
-        this.themeToggle = document.getElementById('theme-toggle');
-        this.themeSelect = document.getElementById('theme-select'); // Add theme select
+        this.themeSelect = document.getElementById('theme-select');
         this.setupModal = document.getElementById('setup-modal-backdrop');
         this.gameOverModal = document.getElementById('game-over-modal-backdrop');
         this.rowsInput = document.getElementById('rows-input');
@@ -175,7 +124,6 @@ class ProLCTRGui {
         this.startGameBtn.addEventListener('click', () => this.processSetup());
         this.newGameBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
         this.playAgainBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
-        this.themeToggle.addEventListener('change', () => { SoundManager.play('click'); this.toggleTheme(); });
         this.difficultySlider.addEventListener('input', () => this.updateDifficultyLabel());
         this.helpBtn.addEventListener('mouseenter', () => this.showHelp());
         this.helpBtn.addEventListener('mouseleave', () => this.hideHelp());
@@ -187,15 +135,11 @@ class ProLCTRGui {
             this.generatePartitionBtn.addEventListener('click', () => this.generatePartition());
         }
         if (this.downloadBtnModal) {
-            this.downloadBtnModal.addEventListener('click', () => { 
-                SoundManager.play('click'); 
-                this.downloadGame(); 
-            });
+            this.downloadBtnModal.addEventListener('click', () => { SoundManager.play('click'); this.downloadGame(); });
         }
         if (this.themeSelect) {
             this.themeSelect.addEventListener('change', () => this.applyTileTheme());
         }
-        // Add board interaction event listeners
         this.boardArea.addEventListener('mousemove', (event) => this.handleMouseMove(event));
         this.boardArea.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.boardArea.addEventListener('click', () => this.handleMouseClick());
@@ -211,55 +155,23 @@ class ProLCTRGui {
         try {
             SoundManager.play('click');
             const nums = this.rowsInput.value.trim().split(/\s+/).map(Number);
-            if (nums.length === 0 || nums.some(n => isNaN(n) || n <= 0)) throw new Error("Invalid input");
-            
-            const aiSide = this.aiSelect.value === "None" ? null : this.aiSelect.value;
-            this.aiDifficulty = this.difficultySlider.value; // Changed to slider value
-            // Set tile theme
-            this.applyTileTheme();
-            // Hide modal fully
-            this.setupModal.classList.remove('visible');
-            this.setupModal.style.opacity = '0';
-            this.setupModal.style.visibility = 'hidden';
+            if (nums.some(n => isNaN(n) || n <= 0)) throw new Error("Invalid input");
+            if (nums.length === 1 && nums[0] === 0) throw new Error("Invalid input");
 
+
+            const aiSide = this.aiSelect.value === "None" ? null : this.aiSelect.value;
+            this.aiDifficulty = this.difficultySlider.value;
+            this.applyTileTheme();
+            this.setupModal.classList.remove('visible');
             this.startGame(nums, aiSide);
         } catch (e) {
-            alert("Invalid input. Please enter positive integers only.");
+            alert("Invalid input. Please enter positive, space-separated integers.");
         }
     }
-
-    generateGeneralRandomBoard() {
-        SoundManager.play('click');
-        const n = randomInt(15, 40);
-        const partition = randomPartition(n);
-        this.rowsInput.value = partition.join(' ');
-    }
-
-    generateSpecificRandomBoard() {
-        SoundManager.play('click');
-        const n = parseInt(this.partitionNumberInput.value, 10);
-        if (isNaN(n) || n <= 0 || n > 200) {
-            alert("Please enter a positive number less than or equal to 200.");
-            return;
-        }
-        const partition = randomPartition(n);
-        this.rowsInput.value = partition.join(' ');
-    }
-
-    generateSpecificRandomBoardStairCase() {  
-    SoundManager.play('click');  
-  
-    const n = parseInt(this.partitionNumberInput.value, 10); // <-- fixed  
-    if (isNaN(n) || n <= 0 || n > 200) {  
-        alert("Please enter a positive number less than or equal to 200.");  
-        return;  
-    }  
-    const partition = staircase(n);          // [n, n-1, … , 1]  
-    this.rowsInput.value = partition.join(' ');  
-    }  
 
     startGame(rows, aiSide) {
-        this.initialPartition = [...rows]; // Store the original partition for replay
+        this.initialPartition = [...rows];
+        this.gameHistory = [];
         this.game = new Game(new Board(rows), aiSide);
         this.hoveredMove = null;
         this.isAnimating = false;
@@ -270,18 +182,15 @@ class ProLCTRGui {
 
     aiTurn() {
         if (!this.game || !this.game.isAiTurn() || this.isAnimating) return;
-        
         this.aiThinkingIndicator.classList.add('thinking');
-        
         setTimeout(() => {
             this.aiThinkingIndicator.classList.remove('thinking');
             let move;
-            const rand = Math.random();
-            const legalMoves = [];
-            if (this.game.board.height() > 0) legalMoves.push('row');
-            if (this.game.board.width() > 0) legalMoves.push('col');
-
-            if ((this.aiDifficulty === 'Easy' && rand < 0.75) || (this.aiDifficulty === 'Medium' && rand < 0.30)) {
+            const difficultyThreshold = parseInt(this.aiDifficulty, 10) / 100;
+            if (Math.random() > difficultyThreshold) {
+                const legalMoves = [];
+                if (this.game.board.height() > 0) legalMoves.push('row');
+                if (this.game.board.width() > 0) legalMoves.push('col');
                 move = legalMoves[Math.floor(Math.random() * legalMoves.length)];
             } else {
                 move = perfectMove(this.game.board.asTuple());
@@ -296,38 +205,32 @@ class ProLCTRGui {
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
         let detectedMove = null;
-        
-        // Calculate extra left margin for wide boards
         const extraLeftMargin = this.game.board.width() > 30 ? 20 : 0;
         
-        // Special handling for top-left cell - edge-based hover
-        const topLeftCellLeft = this.MARGIN + extraLeftMargin;
-        const topLeftCellTop = this.MARGIN;
-        const topLeftCellRight = this.MARGIN + extraLeftMargin + this.CELL;
-        const topLeftCellBottom = this.MARGIN + this.CELL;
+        // Calculate horizontal centering offset only (same as in redrawBoard) including gaps
+        const boardDataWidth = this.game.board.width() * this.CELL + (this.game.board.width() - 1) * this.GAP;
+        const boardDataHeight = this.game.board.height() * this.CELL + (this.game.board.height() - 1) * this.GAP;
+        let boardWidth = this.MARGIN * 2 + boardDataWidth + extraLeftMargin;
+        let boardHeight = this.MARGIN * 2 + boardDataHeight;
+        const minDimension = 480;
+        boardWidth = Math.max(boardWidth, minDimension);
+        boardHeight = Math.max(boardHeight, minDimension);
+        const actualContentWidth = this.MARGIN * 2 + boardDataWidth + extraLeftMargin;
+        const centerOffsetX = (boardWidth - actualContentWidth) / 2;
         
-        if (this.game.board.height() > 0 && this.game.board.width() > 0 && 
-            mouseX >= topLeftCellLeft && mouseX <= topLeftCellRight && 
-            mouseY >= topLeftCellTop && mouseY <= topLeftCellBottom) {
-            
-            // Calculate distances to bottom and right edges
+        const topLeftCellLeft = centerOffsetX + this.MARGIN + extraLeftMargin;
+        const topLeftCellTop = this.MARGIN;
+        const topLeftCellRight = centerOffsetX + this.MARGIN + extraLeftMargin + this.CELL;
+        const topLeftCellBottom = this.MARGIN + this.CELL;
+        if (this.game.board.height() > 0 && this.game.board.width() > 0 && mouseX >= topLeftCellLeft && mouseX <= topLeftCellRight && mouseY >= topLeftCellTop && mouseY <= topLeftCellBottom) {
             const distToBottom = topLeftCellBottom - mouseY;
             const distToRight = topLeftCellRight - mouseX;
-            
-            // Determine which edge is closer
-            if (distToBottom < distToRight) {
-                detectedMove = 'col'; // Bottom edge → illuminate column
-            } else {
-                detectedMove = 'row'; // Right edge → illuminate row
-            }
-        }
-        // Original logic for other areas
-        else if (this.game.board.height() > 0 && mouseY >= this.MARGIN && mouseY <= this.MARGIN + this.CELL && mouseX >= this.MARGIN + extraLeftMargin && mouseX <= this.MARGIN + extraLeftMargin + this.game.board.rows[0] * this.CELL) {
+            detectedMove = (distToBottom < distToRight) ? 'col' : 'row';
+        } else if (this.game.board.height() > 0 && mouseY >= this.MARGIN && mouseY <= this.MARGIN + this.CELL && mouseX >= centerOffsetX + this.MARGIN + extraLeftMargin && mouseX <= centerOffsetX + this.MARGIN + extraLeftMargin + this.game.board.rows[0] * this.CELL + (this.game.board.rows[0] - 1) * this.GAP) {
             detectedMove = 'row';
-        } else if (this.game.board.width() > 0 && mouseX >= this.MARGIN + extraLeftMargin && mouseX <= this.MARGIN + extraLeftMargin + this.CELL && mouseY >= this.MARGIN && mouseY <= this.MARGIN + this.game.board.height() * this.CELL) {
+        } else if (this.game.board.width() > 0 && mouseX >= centerOffsetX + this.MARGIN + extraLeftMargin && mouseX <= centerOffsetX + this.MARGIN + extraLeftMargin + this.CELL && mouseY >= this.MARGIN && mouseY <= this.MARGIN + this.game.board.height() * this.CELL + (this.game.board.height() - 1) * this.GAP) {
             detectedMove = 'col';
         }
-
         if (detectedMove !== this.hoveredMove) {
             if (detectedMove) SoundManager.play('hover');
             this.hoveredMove = detectedMove;
@@ -357,10 +260,10 @@ class ProLCTRGui {
             for (let r = 1; r < this.game.board.height(); r++) {
                 for (let c = 0; c < this.game.board.rows[r]; c++) {
                     const tile = document.getElementById(`tile-${r}-${c}`);
-                    if (tile) { tile.style.top = `${parseInt(tile.style.top) - this.CELL}px`; }
+                    if (tile) { tile.style.top = `${parseInt(tile.style.top) - (this.CELL + this.GAP)}px`; }
                 }
             }
-        } else { // 'col'
+        } else {
             for (let r = 0; r < this.game.board.height(); r++) { document.getElementById(`tile-${r}-0`)?.classList.add('removing'); }
         }
         setTimeout(() => this.finishMove(moveKind), this.ANIMATION_MS);
@@ -384,23 +287,28 @@ class ProLCTRGui {
 
     saveGameState() {
         if (!this.game) return;
-        const boardCopy = {
-            grid: this.game.board.rows.map(row => row)
-        };
-        const gameState = {
-            board: boardCopy,
-            currentIndex: this.game.currentIndex
-        };
-        this.gameHistory = this.gameHistory || [];
+        const boardCopy = { grid: this.game.board.rows.map(row => row) };
+        const gameState = { board: boardCopy, currentIndex: this.game.currentIndex };
         this.gameHistory.push(gameState);
     }
 
     redrawBoard() {
-        this.boardArea.querySelectorAll('.tile').forEach(tile => tile.remove());
+        this.boardArea.innerHTML = '';
         if (!this.game) return;
-        
-        // Add small left margin for very wide boards (CSS handles main off-screen prevention)
         const extraLeftMargin = this.game.board.width() > 30 ? 20 : 0;
+        
+        // Calculate actual content size including gaps
+        const boardDataWidth = this.game.board.width() * this.CELL + (this.game.board.width() - 1) * this.GAP;
+        const boardDataHeight = this.game.board.height() * this.CELL + (this.game.board.height() - 1) * this.GAP;
+        let boardWidth = this.MARGIN * 2 + boardDataWidth + extraLeftMargin;
+        let boardHeight = this.MARGIN * 2 + boardDataHeight;
+        const minDimension = 480;
+        boardWidth = Math.max(boardWidth, minDimension);
+        boardHeight = Math.max(boardHeight, minDimension);
+        
+        // Calculate horizontal centering offset only
+        const actualContentWidth = this.MARGIN * 2 + boardDataWidth + extraLeftMargin;
+        const centerOffsetX = (boardWidth - actualContentWidth) / 2;
         
         this.game.board.squares().forEach(({ r, c }) => {
             const tile = document.createElement('div');
@@ -408,22 +316,10 @@ class ProLCTRGui {
             tile.id = `tile-${r}-${c}`;
             tile.style.width = `${this.CELL}px`;
             tile.style.height = `${this.CELL}px`;
-            tile.style.left = `${this.MARGIN + extraLeftMargin + c * this.CELL}px`;
-            tile.style.top = `${this.MARGIN + r * this.CELL}px`;
+            tile.style.left = `${centerOffsetX + this.MARGIN + extraLeftMargin + c * (this.CELL + this.GAP)}px`;
+            tile.style.top = `${this.MARGIN + r * (this.CELL + this.GAP)}px`;
             this.boardArea.appendChild(tile);
         });
-        
-        // Set board area size explicitly with extra left margin for wide boards
-        const boardDataWidth = this.game.board.width() * this.CELL;
-        const boardDataHeight = this.game.board.height() * this.CELL;
-        
-        let boardWidth = this.MARGIN * 2 + boardDataWidth + extraLeftMargin;
-        let boardHeight = this.MARGIN * 2 + boardDataHeight;
-        
-        // Set minimum dimensions (like CRIM)
-        const minDimension = 480;
-        boardWidth = Math.max(boardWidth, minDimension);
-        boardHeight = Math.max(boardHeight, minDimension);
         
         this.boardArea.style.width = `${boardWidth}px`;
         this.boardArea.style.height = `${boardHeight}px`;
@@ -432,7 +328,7 @@ class ProLCTRGui {
     updateStatus() {
         if (!this.game) return;
         const kind = this.game.isAiTurn() ? "Computer" : "Human";
-        const newText = `Player ${this.game.currentPlayer} (${kind}) to move`;
+        const newText = `${this.game.currentPlayer} (${kind}) to move`;
         if (this.statusLabel.textContent === newText) return;
         this.statusLabel.classList.add('exiting');
         setTimeout(() => {
@@ -445,45 +341,30 @@ class ProLCTRGui {
     requestMove(moveKind) { if (!this.isAnimating && !this.game.isAiTurn() && moveKind) { this.executeWithAnimation(moveKind); } }
     showHelp() { this.helpPopover.classList.add('visible'); }
     hideHelp() { this.helpPopover.classList.remove('visible'); }
-    initTheme() { const savedTheme = localStorage.getItem('theme') || 'light'; document.documentElement.setAttribute('data-theme', savedTheme); this.themeToggle.checked = savedTheme === 'dark'; }
-    toggleTheme() { const newTheme = this.themeToggle.checked ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', newTheme); localStorage.setItem('theme', newTheme); }
     showSetupModal() { this.gameOverModal.classList.remove('visible'); this.setupModal.classList.add('visible'); }
-    updateDifficultyLabel() {
-        const difficulty = this.difficultySlider.value;
-        this.difficultyLabel.textContent = `AI Difficulty: ${difficulty}`;
-    }
+    updateDifficultyLabel() { this.difficultyLabel.textContent = `AI Difficulty: ${this.difficultySlider.value}`; }
+    
     generatePartition() {
         const partitionType = this.partitionTypeSelect.value;
-        const n = parseInt(this.partitionNumberInput.value, 10);
+        const n_str = this.partitionNumberInput.value;
+        if (!n_str) { alert("Please enter a number for partition generation."); return; }
+        const n = parseInt(n_str, 10);
+        if (isNaN(n) || n <= 0 || n > 200) { alert("Please enter a positive number less than or equal to 200."); return; }
         let partition;
-        if (partitionType === 'random') {
-            partition = randomPartition(n);
-        } else if (partitionType === 'staircase') {
-            partition = staircase(n);
-        }
-        
-        else if (partitionType === 'square') {
-            partition = square(n);
-        }
-
-        else if (partitionType === 'hook') {
-            partition = hook(n);
-        }
+        if (partitionType === 'random') partition = randomPartition(n);
+        else if (partitionType === 'staircase') partition = staircase(n);
+        else if (partitionType === 'square') partition = square(n);
+        else if (partitionType === 'hook') partition = hook(n);
         this.rowsInput.value = partition.join(' ');
     }
+
     downloadGame() {
         if (!this.game) return;
-        // Build the full move history (including current state)
-        const allStates = (this.gameHistory || []).map(state => {
+        const allStates = this.gameHistory.map(state => {
             let mask = state.board && state.board.grid ? state.board.grid : state.board;
             return { mask, currentIndex: state.currentIndex };
         });
-        // Add the current state
-        let currentMask = this.game.board.rows;
-        allStates.push({ mask: currentMask, currentIndex: this.game.currentIndex, timestamp: Date.now() });
-        // Generate HTML, pass initialPartition
         const htmlContent = this.generateGameReplayHTML_LCTR(allStates, this.initialPartition);
-        // Download
         const blob = new Blob([htmlContent], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -502,26 +383,26 @@ class ProLCTRGui {
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${title}</title>
 <style>
- body{font-family:sans-serif;background:#fff;color:#111;margin:0;padding:20px;
+ body{font-family:sans-serif;background:#f4f4f9;color:#333;margin:0;padding:20px;
        min-height:100vh;display:flex;flex-direction:column;align-items:center;}
- .container{background:#fff;border-radius:20px;padding:30px;max-width:800px;width:100%;
-            box-shadow:0 4px 24px #0001;text-align:center;}
- h1{margin-top:0;color:#111;letter-spacing:1px;}
+ .container{background:#fff;border-radius:12px;padding:30px;max-width:800px;width:100%;
+            box-shadow:0 6px 20px rgba(0,0,0,0.08);text-align:center;}
+ h1{margin-top:0;color:#333;letter-spacing:1px;}
  .controls{margin:20px 0;display:flex;justify-content:center;align-items:center;
-           gap:20px;flex-wrap:wrap;}
- button{padding:12px 20px;font-size:16px;border:none;border-radius:8px;
-        background:#eee;color:#111;cursor:pointer;transition:all .2s;}
- button:hover{background:#ddd;transform:translateY(-2px);}
+           gap:15px;flex-wrap:wrap;}
+ button{padding:10px 18px;font-size:15px;border:none;border-radius:8px;
+        background:#e9ecef;color:#333;cursor:pointer;transition:all .2s;}
+ button:hover{background:#dee2e6;transform:translateY(-2px);}
  button:disabled{opacity:.5;cursor:not-allowed;transform:none;}
- .state-info{font-size:18px;margin:10px 0;font-weight:bold;color:#111;}
- #game-canvas{border:2px solid #111;border-radius:12px;margin:20px auto;display:block;
-             background:#fff;box-shadow:0 8px 25px #0001;}
- .instructions{margin-top:20px;font-size:14px;opacity:.7;line-height:1.6;}
+ .state-info{font-size:18px;margin:10px 0;font-weight:bold;color:#555;}
+ #game-canvas{border:2px solid #dee2e6;border-radius:8px;margin:20px auto;display:block;
+             background:#fff;}
+ .instructions{margin-top:20px;font-size:14px;color:#666;line-height:1.6;}
  .error{color:#b00020;background:#f8d7da;padding:12px;border-radius:8px;margin:20px 0;font-size:1.1em;}
 </style></head><body>
 <div class="container">
  <h1>${title}</h1>
- <div class="state-info">State <span id="current-state">1</span> of
+ <div class="state-info">Move <span id="current-state">1</span> of
  <span id="total-states">${gameStates.length}</span></div>
  <div class="controls">
   <button id="first-btn" onclick="goToState(0)">⏮ First</button>
@@ -534,18 +415,17 @@ class ProLCTRGui {
  <div id="error-message" class="error" style="display:none"></div>
  <div class="instructions">
   <strong>Navigation:</strong> Use ←/→ keys or the buttons above.<br>
-  <strong>Autoplay:</strong> Press Play to advance automatically.
+  <strong>Autoplay:</strong> Press Play/Pause to advance automatically.
  </div>
 </div>
 <script>
  const gameStates=${JSON.stringify(gameStates)};
  const initialPartition=${JSON.stringify(initialPartition)};
  let currentStateIndex=0,isPlaying=false,playInterval;
- const CELL_SIZE=40,MARGIN=20;
+ const CELL_SIZE=30,MARGIN=20;
  const canvas=document.getElementById('game-canvas'),ctx=canvas.getContext('2d');
  const errorDiv=document.getElementById('error-message');
  function drawBoard(mask){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
   if(!Array.isArray(initialPartition)||!initialPartition.length){
     errorDiv.textContent='Game Ended.';errorDiv.style.display='block';return;
   }errorDiv.style.display='none';
@@ -556,20 +436,18 @@ class ProLCTRGui {
   canvas.width=canvasWidth;
   canvas.height=canvasHeight;
   ctx.clearRect(0,0,canvasWidth,canvasHeight);
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
   for(let r=0;r<boardHeight;r++){
-    const rowLen = initialPartition[r];
-    const maskLen = (mask && mask[r] !== undefined) ? (Array.isArray(mask[r]) ? mask[r].reduce((acc,v)=>acc+(v?1:0),0) : mask[r]) : 0;
-    for(let c=0;c<rowLen;c++){
+    for(let c=0;c<initialPartition[r];c++){
       const x=MARGIN+c*CELL_SIZE;
       const y=MARGIN+r*CELL_SIZE;
-      ctx.fillStyle = c < maskLen ? '#111' : '#fff'; // black if present, white if removed
+      const isPresent = mask && r < mask.length && c < mask[r];
+      ctx.fillStyle = isPresent ? '#333' : '#f4f4f9';
       ctx.fillRect(x,y,CELL_SIZE,CELL_SIZE);
+      ctx.strokeRect(x,y,CELL_SIZE,CELL_SIZE);
     }
   }
-  ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=1;
-  for(let r=0;r<=boardHeight;r++){const y=MARGIN+r*CELL_SIZE;ctx.beginPath();ctx.moveTo(MARGIN,y);ctx.lineTo(MARGIN+boardWidth*CELL_SIZE,y);ctx.stroke();}
-  for(let c=0;c<=boardWidth;c++){const x=MARGIN+c*CELL_SIZE;ctx.beginPath();ctx.moveTo(x,MARGIN);ctx.lineTo(x,MARGIN+boardHeight*CELL_SIZE);ctx.stroke();}
-  ctx.restore();
  }
  function updateDisplay(){
   drawBoard(gameStates[currentStateIndex].mask);
@@ -586,18 +464,20 @@ class ProLCTRGui {
   const btn=document.getElementById('play-btn');
   if(isPlaying){clearInterval(playInterval);isPlaying=false;btn.textContent='▶ Play';}
   else{isPlaying=true;btn.textContent='⏸ Pause';
-    playInterval=setInterval(()=>{if(currentStateIndex<gameStates.length-1)nextState();else toggleAutoplay();},1000);}
+    playInterval=setInterval(()=>{if(currentStateIndex<gameStates.length-1)nextState();else toggleAutoplay();},800);}
  }
  document.addEventListener('keydown',e=>{
    if(e.key==='ArrowLeft'){e.preventDefault();previousState();}
    else if(e.key==='ArrowRight'){e.preventDefault();nextState();}
-   else if(e.key===' '){e.preventDefault();toggleAutoplay();}
+   else if(e.key===' '||e.key==='Spacebar'){e.preventDefault();toggleAutoplay();}
  });
- updateDisplay();
+ goToState(0); // Initial draw
 </script></body></html>`;
     }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    // The global script.js handles theme initialization.
+    // We just need to initialize our game GUI.
     window.lctrApp = new ProLCTRGui();
 });
