@@ -165,7 +165,7 @@ main {
 /* Game Title Section */
 .game-title-section {
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: 0.5rem;
 }
 
 .game-title-section h1 {
@@ -400,7 +400,9 @@ footer {
     background: var(--white); 
     border: 1px solid var(--gray-light); 
     box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); 
-    opacity: 0; 
+    opacity: 0;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace;
+    text-transform: lowercase;
 }
 .modal-backdrop.visible .modal { 
     animation: modal-entry 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards; 
@@ -434,6 +436,8 @@ footer {
     background-color: var(--white);
 }
 .modal-btn { 
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace;
+    text-transform: lowercase;
     width: 100%; 
     margin-top: 8px; 
     color: var(--white); 
@@ -446,14 +450,16 @@ footer {
     transition: background-color 0.2s ease;
 }
 .modal-btn:hover { background-color: var(--orange-dark); }
-.input-group { display: flex; gap: 8px; }
-.input-group input { flex-grow: 1; min-width: 0; }
-.input-group button { flex-shrink: 0; }
+.input-group { display: flex; gap: 8px; font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace; text-transform: lowercase; }
+.input-group input { flex-basis: 80px; flex-shrink: 0; flex-grow: 0; min-width: 60px; font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace; }
+.input-group button { flex-grow: 1; font-size: 14px; font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace; }
+.input-group select { flex-shrink: 0; width: auto; font-size: 14px; font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace; }
 
 .slider-container { width: 100%; display: flex; align-items: center; }
 .difficulty-range { width: 100%; }
 
-.icon-button { 
+.icon-button {
+    font-size: 14px;
     display: flex; 
     align-items: center; 
     justify-content: center; 
@@ -463,6 +469,8 @@ footer {
     border-radius: 99px; 
     color: var(--gray);
     cursor: pointer;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace;
+    text-transform: lowercase;
 }
 .icon-button:hover { 
     color: var(--orange); 

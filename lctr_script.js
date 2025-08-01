@@ -159,7 +159,9 @@ class ProLCTRGui {
             if (nums.length === 1 && nums[0] === 0) throw new Error("Invalid input");
 
 
-            const aiSide = this.aiSelect.value === "None" ? null : this.aiSelect.value;
+            const aiSide = this.aiSelect.value === "None" ? null : 
+                         this.aiSelect.value === "A" ? "Alice" :
+                         this.aiSelect.value === "B" ? "Bob" : null;
             this.aiDifficulty = this.difficultySlider.value;
             this.applyTileTheme();
             this.setupModal.classList.remove('visible');
@@ -341,8 +343,23 @@ class ProLCTRGui {
     requestMove(moveKind) { if (!this.isAnimating && !this.game.isAiTurn() && moveKind) { this.executeWithAnimation(moveKind); } }
     showHelp() { this.helpPopover.classList.add('visible'); }
     hideHelp() { this.helpPopover.classList.remove('visible'); }
-    showSetupModal() { this.gameOverModal.classList.remove('visible'); this.setupModal.classList.add('visible'); }
-    updateDifficultyLabel() { this.difficultyLabel.textContent = `AI Difficulty: ${this.difficultySlider.value}`; }
+    showSetupModal() { 
+        this.gameOverModal.classList.remove('visible'); 
+        this.setupModal.classList.add('visible'); 
+        this.updateDifficultyLabel(); // Initialize the difficulty label
+    }
+    updateDifficultyLabel() { 
+        const value = parseInt(this.difficultySlider.value);
+        const difficulty = this.getDifficultyFromValue(value);
+        this.difficultyLabel.textContent = `${difficulty} (${value})`;
+    }
+    
+    getDifficultyFromValue(value) {
+        if (value < 20) return 'easy';
+        if (value <= 70) return 'medium';
+        if (value <= 99) return 'hard';
+        return 'perfect';
+    }
     
     generatePartition() {
         const partitionType = this.partitionTypeSelect.value;
