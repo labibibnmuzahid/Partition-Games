@@ -89,6 +89,28 @@ class ProLCTRGui {
         this.aiDifficulty = '50';
         this.gameHistory = [];
         
+        // Multiplayer properties
+        this.socket = io('http://localhost:3001', {
+            forceNew: true,
+            reconnection: true,
+            timeout: 5000,
+            transports: ['websocket', 'polling']
+        });
+        this.roomId = null;
+        this.playerSymbol = null; // 'A' for Alice, 'B' for Bob
+        this.isMultiplayer = false;
+        
+        // Socket connection debugging
+        this.socket.on('connect', () => {
+            console.log('Socket connected:', this.socket.id);
+        });
+        this.socket.on('disconnect', () => {
+            console.log('Socket disconnected');
+        });
+        this.socket.on('connect_error', (error) => {
+            console.log('Socket connection error:', error);
+        });
+        
         this.getDOMElements();
         this.bindEventListeners();
         SoundManager.init();
@@ -118,6 +140,12 @@ class ProLCTRGui {
         this.helpBtnModal = document.getElementById('help-btn-modal');
         this.helpPopover = document.getElementById('help-popover');
         this.downloadBtnModal = document.getElementById('download-btn-modal');
+        
+        // Multiplayer elements
+        this.createGameBtn = document.getElementById('create-game-btn');
+        this.joinGameBtn = document.getElementById('join-game-btn');
+        this.joinRoomInput = document.getElementById('join-room-input');
+        this.roomInfoLabel = document.getElementById('room-info-label');
     }
 
     bindEventListeners() {
@@ -190,9 +218,127 @@ class ProLCTRGui {
         this.boardArea.addEventListener('mousemove', (event) => this.handleMouseMove(event));
         this.boardArea.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.boardArea.addEventListener('click', () => this.handleMouseClick());
+        
+        // Multiplayer button event listeners
+        this.createGameBtn.addEventListener('click', () => this.createMultiplayerGame());
+        this.joinGameBtn.addEventListener('click', () => this.joinMultiplayerGame());
+        
+        // Socket event listeners
+        this.socket.on('gameCreated', ({ roomId }) => {
+            this.roomId = roomId;
+            this.isMultiplayer = true;
+            this.playerSymbol = 'A'; // Creator is Alice (first player)
+            this.roomInfoLabel.textContent = `Game ID: ${roomId} - Waiting for opponent...`;
+            this.roomInfoLabel.style.color = 'var(--orange)';
+        });
+        
+        this.socket.on('gameStart', ({ board, players, currentPlayer }) => {
+            console.log(`[${this.socket.id}] Received gameStart:`, { board, players, currentPlayer });
+            console.log(`[${this.socket.id}] Current roomId before gameStart:`, this.roomId);
+            
+            this.isMultiplayer = true;
+            // Determine if this client is Alice or Bob
+            this.playerSymbol = players[0] === this.socket.id ? 'A' : 'B';
+            this.roomInfoLabel.textContent = `Game started! You are ${this.playerSymbol === 'A' ? 'Alice' : 'Bob'}`;
+            this.roomInfoLabel.style.color = 'var(--gray)';
+            this.setupModal.classList.remove('visible');
+            
+            console.log(`[${this.playerSymbol}] Set as player symbol, roomId is still:`, this.roomId);
+            
+            this.startGame(board, null); // No AI in multiplayer
+        });
+        
+        this.socket.on('gameStateUpdate', ({ board, moveKind, currentPlayer, gameEnded, winner }) => {
+            if (!this.isMultiplayer) return;
+            
+            console.log(`[${this.playerSymbol}] Received gameStateUpdate:`, { 
+                board, 
+                moveKind, 
+                currentPlayer, 
+                gameEnded, 
+                winner,
+                currentBoardBeforeUpdate: this.game.board.rows,
+                currentIndexBefore: this.game.currentIndex
+            });
+            
+            // Update the local game state from server
+            this.game.board.rows = [...board];
+            this.game.currentIndex = currentPlayer;
+            
+            console.log(`[${this.playerSymbol}] After setting currentIndex:`, {
+                newCurrentIndex: this.game.currentIndex,
+                currentPlayer: currentPlayer,
+                gameCurrentPlayer: this.game.currentPlayer
+            });
+            
+            // Simply redraw the board with the new state
+            this.redrawBoard();
+            this.isAnimating = false;
+            
+            console.log(`[${this.playerSymbol}] Updated board and redrawn`);
+            
+            if (gameEnded) {
+                SoundManager.play('win');
+                const winnerName = winner === 0 ? 'Alice' : 'Bob';
+                this.gameOverMessage.textContent = `Player ${winnerName} wins!`;
+                this.gameOverModal.classList.add('visible');
+            } else {
+                this.updateStatus();
+            }
+        });
+        
+        this.socket.on('playerDisconnected', ({ message }) => {
+            alert(message);
+            this.resetToSinglePlayer();
+        });
+        
+        this.socket.on('error', (message) => {
+            console.log(`[${this.playerSymbol}] Received error:`, message);
+            alert(`Error: ${message}`);
+            this.roomInfoLabel.textContent = '';
+            this.roomInfoLabel.style.color = '';
+            // Reset animation state if there was an error
+            this.isAnimating = false;
+        });
     }
 
+    // Multiplayer helper methods
+    createMultiplayerGame() {
+        try {
+            SoundManager.play('click');
+            const nums = this.rowsInput.value.trim().split(/\s+/).map(Number);
+            if (nums.some(n => isNaN(n) || n <= 0)) throw new Error("Invalid input");
+            if (nums.length === 1 && nums[0] === 0) throw new Error("Invalid input");
+            
+            this.socket.emit('createGame', nums);
+        } catch (e) {
+            alert("Invalid input. Please enter positive, space-separated integers.");
+        }
+    }
+    
+    joinMultiplayerGame() {
+        SoundManager.play('click');
+        const roomId = this.joinRoomInput.value.trim().toUpperCase();
+        if (!roomId) {
+            alert("Please enter a Game ID");
+            return;
+        }
+        
+        console.log(`Attempting to join room:`, roomId);
+        this.roomId = roomId; // Set roomId when joining
+        this.socket.emit('joinGame', roomId);
+    }
+    
 
+    
+    resetToSinglePlayer() {
+        this.isMultiplayer = false;
+        this.roomId = null;
+        this.playerSymbol = null;
+        this.roomInfoLabel.textContent = '';
+        this.roomInfoLabel.style.color = '';
+        this.showSetupModal();
+    }
 
     processSetup() {
         try {
@@ -221,7 +367,11 @@ class ProLCTRGui {
         this.isAnimating = false;
         this.redrawBoard();
         this.updateStatus();
-        if (this.game.isAiTurn()) { this.aiTurn(); }
+        
+        // Only start AI turn if it's not a multiplayer game
+        if (!this.isMultiplayer && this.game.isAiTurn()) { 
+            this.aiTurn(); 
+        }
     }
 
     aiTurn() {
@@ -245,6 +395,18 @@ class ProLCTRGui {
     
     handleMouseMove(event) {
         if (!this.game || this.game.isAiTurn() || this.isAnimating) return;
+        
+        // In multiplayer, only allow hover effects if it's the local player's turn
+        if (this.isMultiplayer) {
+            const isMyTurn = (this.playerSymbol === 'A' && this.game.currentIndex === 0) ||
+                            (this.playerSymbol === 'B' && this.game.currentIndex === 1);
+            console.log(`[${this.playerSymbol}] Turn check:`, {
+                playerSymbol: this.playerSymbol,
+                currentIndex: this.game.currentIndex,
+                isMyTurn: isMyTurn
+            });
+            if (!isMyTurn) return;
+        }
         const rect = this.boardArea.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
@@ -371,8 +533,26 @@ class ProLCTRGui {
 
     updateStatus() {
         if (!this.game) return;
-        const kind = this.game.isAiTurn() ? "Computer" : "Human";
-        const newText = `${this.game.currentPlayer} (${kind}) to move`;
+        
+        let newText;
+        if (this.isMultiplayer) {
+            const currentPlayerName = this.game.currentPlayer;
+            const isMyTurn = (this.playerSymbol === 'A' && this.game.currentIndex === 0) ||
+                            (this.playerSymbol === 'B' && this.game.currentIndex === 1);
+            const turnIndicator = isMyTurn ? "Your turn" : "Opponent's turn";
+            newText = `${currentPlayerName} (${turnIndicator}) to move`;
+            
+            console.log(`[${this.playerSymbol}] Status update:`, {
+                currentPlayerName,
+                currentIndex: this.game.currentIndex,
+                isMyTurn,
+                playerSymbol: this.playerSymbol
+            });
+        } else {
+            const kind = this.game.isAiTurn() ? "Computer" : "Human";
+            newText = `${this.game.currentPlayer} (${kind}) to move`;
+        }
+        
         if (this.statusLabel.textContent === newText) return;
         this.statusLabel.classList.add('exiting');
         setTimeout(() => {
@@ -381,14 +561,48 @@ class ProLCTRGui {
         }, 200);
     }
     
-    handleMouseClick() { if (this.hoveredMove) { this.requestMove(this.hoveredMove); } }
-    requestMove(moveKind) { if (!this.isAnimating && !this.game.isAiTurn() && moveKind) { this.executeWithAnimation(moveKind); } }
+    handleMouseClick() { 
+        console.log(`[${this.playerSymbol}] Mouse click - hoveredMove:`, this.hoveredMove);
+        if (this.hoveredMove) { 
+            this.requestMove(this.hoveredMove); 
+        } else {
+            console.log(`[${this.playerSymbol}] Click ignored - no hovered move`);
+        }
+    }
+    requestMove(moveKind) { 
+        if (!this.isAnimating && !this.game.isAiTurn() && moveKind) { 
+            if (this.isMultiplayer && this.roomId) {
+                // In multiplayer, emit the move to the server
+                console.log(`[${this.playerSymbol}] Attempting to make move:`, moveKind, 'Current player index:', this.game.currentIndex);
+                console.log(`[${this.playerSymbol}] Using roomId:`, this.roomId);
+                this.socket.emit('makeMove', { roomId: this.roomId, moveKind: moveKind });
+            } else {
+                // In single player, execute locally
+                console.log(`[${this.playerSymbol}] Single player mode - isMultiplayer:`, this.isMultiplayer, 'roomId:', this.roomId);
+                this.executeWithAnimation(moveKind); 
+            }
+        } else {
+            console.log(`[${this.playerSymbol}] Move blocked:`, { 
+                isAnimating: this.isAnimating, 
+                isAiTurn: this.game?.isAiTurn(), 
+                moveKind,
+                currentIndex: this.game?.currentIndex 
+            });
+        }
+    }
     showHelp() { this.helpPopover.classList.add('visible'); }
     hideHelp() { this.helpPopover.classList.remove('visible'); }
     showSetupModal() { 
         this.gameOverModal.classList.remove('visible'); 
         this.setupModal.classList.add('visible'); 
         this.updateDifficultyLabel(); // Initialize the difficulty label
+        
+        // Reset multiplayer state when showing setup modal (but don't call showSetupModal again)
+        this.isMultiplayer = false;
+        this.roomId = null;
+        this.playerSymbol = null;
+        this.roomInfoLabel.textContent = '';
+        this.roomInfoLabel.style.color = '';
     }
     updateDifficultyLabel() { 
         const value = parseInt(this.difficultySlider.value);
