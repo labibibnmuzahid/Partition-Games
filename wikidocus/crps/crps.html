@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRPS - Combinatorial Row-Partizan Splits</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        .game-info {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #3498db;
+        }
+        .rules-box {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #27ae60;
+        }
+        .strategy-tip {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .example {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #6c757d;
+            font-family: monospace;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .back-link:hover {
+            background: #2980b9;
+        }
+        .fragment-demo {
+            background: #f0f8ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px dashed #4682b4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CRPS: Combinatorial Row-Partizan Splits</h1>
+        
+        <div class="game-info">
+            <strong>CRPS</strong> is a partizan variant of CRIS (Combinatorial Row/Column Independent Splits) where players have asymmetric move sets based on their role, creating strategic depth through player-specific constraints and independent fragment management.
+        </div>
+
+        <h2>Game Setup</h2>
+        <p>The game begins with a Young diagram (partition) represented as a grid of squares. This initial configuration forms the first <em>fragment</em>.</p>
+
+        <div class="example">
+Initial partition: [6, 5, 5, 4]
+■ ■ ■ ■ ■ ■
+■ ■ ■ ■ ■
+■ ■ ■ ■ ■
+■ ■ ■ ■
+        </div>
+
+        <h2>Player Roles & Move Restrictions</h2>
+        
+        <div class="rules-box">
+            <h3>Asymmetric Move Sets:</h3>
+            <ul>
+                <li><strong>Player A (Red):</strong> Can ONLY remove entire rows from any fragment</li>
+                <li><strong>Player B (Blue):</strong> Can ONLY remove entire columns from any fragment</li>
+            </ul>
+        </div>
+
+        <p>This creates a <em>partizan game</em> where players have fundamentally different capabilities, unlike the symmetric nature of the original CRIS game.</p>
+
+        <h2>Fragment Independence</h2>
+        
+        <div class="fragment-demo">
+            <h3>Key Concept: Independent Fragments</h3>
+            <p>When a move splits a rectangular region into disconnected pieces, each piece becomes an independent fragment. Players can then choose to operate on <em>any</em> fragment on their turn.</p>
+        </div>
+
+        <div class="rules-box">
+            <h3>Fragment Splitting Rules:</h3>
+            <ul>
+                <li>When Player A removes a row, any resulting disconnected pieces become separate fragments</li>
+                <li>When Player B removes a column, any resulting disconnected pieces become separate fragments</li>
+                <li>Each fragment can be targeted independently on subsequent moves</li>
+                <li>Fragments retain their positions but operate as separate game components</li>
+            </ul>
+        </div>
+
+        <h2>Gameplay Example</h2>
+        
+        <div class="example">
+Turn 1: Player A removes row 1 from initial fragment
+■ ■ ■ ■ ■     (removed)
+■ ■ ■ ■ ■  →  ■ ■ ■ ■ ■
+■ ■ ■ ■ ■     ■ ■ ■ ■ ■  
+■ ■ ■ ■       ■ ■ ■ ■
+
+Turn 2: Player B removes column 3 from remaining fragment
+■ ■ ■ ■ ■     ■ ■   ■ ■
+■ ■ ■ ■ ■  →  ■ ■   ■ ■   (creates 2 fragments!)
+■ ■ ■ ■       ■ ■   ■ ■
+
+Turn 3: Player A can now choose either fragment to remove a row from...
+        </div>
+
+        <h2>Strategic Implications</h2>
+
+        <div class="strategy-tip">
+            <h3>Partizan Strategy Considerations:</h3>
+            <ul>
+                <li><strong>Asymmetric Threats:</strong> Player A controls row-based fragmentation, Player B controls column-based splits</li>
+                <li><strong>Fragment Control:</strong> Creating favorable fragment shapes for your move type while limiting opponent opportunities</li>
+                <li><strong>Endgame Planning:</strong> Each player must consider different terminal positions based on their move restrictions</li>
+                <li><strong>Piece Coordination:</strong> Unlike CRIS, players cannot freely choose move types, requiring different tactical approaches</li>
+            </ul>
+        </div>
+
+        <h3>Advanced Tactics</h3>
+        <ul>
+            <li><strong>Fragment Generation:</strong> Create multiple small fragments to limit opponent options</li>
+            <li><strong>Shape Manipulation:</strong> Force fragments into shapes that favor your move type</li>
+            <li><strong>Tempo Control:</strong> Use your unique move capabilities to control game pace</li>
+            <li><strong>Zugzwang Positions:</strong> Force opponent into positions where any move worsens their situation</li>
+        </ul>
+
+        <h2>Game Theory Properties</h2>
+        
+        <p>CRPS belongs to the class of <em>partizan combinatorial games</em> because:</p>
+        <ul>
+            <li>Players have different move sets (asymmetric)</li>
+            <li>Perfect information with no randomness</li>
+            <li>Finite game tree (game must eventually end)</li>
+            <li>Normal play convention (last player to move wins)</li>
+        </ul>
+
+        <div class="game-info">
+            <strong>Computational Complexity:</strong> The analysis of CRPS positions requires partizan game theory rather than the Sprague-Grundy theorem used for impartial games like the original CRIS.
+        </div>
+
+        <h2>Victory Conditions</h2>
+        
+        <div class="rules-box">
+            <p><strong>A player wins when their opponent cannot make a legal move.</strong></p>
+            <ul>
+                <li>Player A wins if no fragments have removable rows when it's Player B's turn</li>
+                <li>Player B wins if no fragments have removable columns when it's Player A's turn</li>
+                <li>The asymmetric nature means different types of positions are winning for each player</li>
+            </ul>
+        </div>
+
+        <h2>Comparison with Related Games</h2>
+        
+        <h3>CRPS vs. CRIS:</h3>
+        <ul>
+            <li><strong>Move Freedom:</strong> CRIS allows any player to choose rows or columns; CRPS restricts by player</li>
+            <li><strong>Strategic Depth:</strong> CRPS adds positional evaluation complexity due to asymmetric capabilities</li>
+            <li><strong>Game Length:</strong> CRPS games may be shorter due to more constrained move options</li>
+        </ul>
+
+        <h3>CRPS vs. CRPM:</h3>
+        <ul>
+            <li><strong>Fragment Behavior:</strong> CRPS maintains independent fragments; CRPM merges remaining pieces</li>
+            <li><strong>Board Evolution:</strong> CRPS creates spreading fragment arrays; CRPM maintains single connected partition</li>
+            <li><strong>Complexity:</strong> CRPS fragment management adds additional strategic layers</li>
+        </ul>
+
+        <div class="strategy-tip">
+            <strong>Meta-Strategy:</strong> In CRPS, mastering both your own capabilities and understanding your opponent's limitations is crucial for optimal play. The game rewards players who can think asymmetrically about position evaluation.
+        </div>
+
+        <a href="../../wiki.html" class="back-link">← Back to Game Documentation</a>
+    </div>
+</body>
+</html> 
