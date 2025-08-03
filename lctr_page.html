@@ -87,6 +87,14 @@
                 <button id="generate-partition-btn">generate</button>
             </div>
             <hr>
+            <label>Multiplayer</label>
+            <button id="create-game-btn" class="secondary-button">Create Online Game</button>
+            <div class="input-group">
+                <input type="text" id="join-room-input" placeholder="Enter Game ID">
+                <button id="join-game-btn">Join Game</button>
+            </div>
+            <p id="room-info-label" style="text-align: center; font-weight: bold;"></p>
+            <hr>
             <label for="ai-select">Computer Player</label>
             <select id="ai-select">
                 <option value="B">Bob (Starts Second)</option>
@@ -123,6 +131,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="script.js"></script>
     <script src="lctr_script.js"></script>
 </body>

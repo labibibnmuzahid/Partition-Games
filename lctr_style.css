@@ -478,6 +478,24 @@ footer {
     transition: background-color 0.2s ease;
 }
 .modal-btn:hover { background-color: var(--orange-dark); }
+.secondary-button {
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace;
+    text-transform: lowercase;
+    width: 100%;
+    margin-bottom: 8px;
+    color: var(--gray-dark);
+    background-color: var(--gray-light);
+    border: 1px solid var(--gray);
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.secondary-button:hover { 
+    background-color: var(--gray); 
+    color: var(--white);
+}
 .input-group { display: flex; gap: 8px; font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace; text-transform: lowercase; }
 .input-group input { flex-basis: 80px; flex-shrink: 0; flex-grow: 0; min-width: 60px; font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace; }
 .input-group button { flex-grow: 1; font-size: 14px; font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace; }
