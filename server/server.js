@@ -3,6 +3,9 @@ const cors = require('cors');
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const { generateToken, hashPassword, verifyPassword } = require('./helpers/auth');
 
 // Database connection - ADD THIS SECTION
 const { Pool } = require('pg');
@@ -31,7 +34,7 @@ const server = http.createServer(app);
 const isProduction = process.env.NODE_ENV === 'production';
 const allowedOrigins = isProduction
   ? ['https://partitiongames.netlify.app', 'https://www.partitiongames.netlify.app']
-  : ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:3000'];
+  : ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:3000', 'null']; // Allow file:// protocol in development
 
 // Enable CORS for Socket.IO
 const io = socketIo(server, {
@@ -52,6 +55,20 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// JWT middleware for REST endpoints
+function authMiddleware(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.replace('Bearer ', '');
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.id;
+    return next();
+  } catch {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+}
 
 // In-memory storage for active games (will be replaced with database later)
 const activeGames = {};
@@ -107,7 +124,109 @@ function isValidMove(board, moveKind) {
   return false;
 }
 
-// [Rest of your Socket.IO and Express code remains exactly the same]
+// Authentication routes
+app.post('/api/auth/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
+
+  try {
+    const hashed = await hashPassword(password);
+    const { rows } = await pool.query(
+      'INSERT INTO users (username, password_hash) VALUES ($1,$2) RETURNING id',
+      [username, hashed]
+    );
+    const token = generateToken(rows[0].id);
+    res.status(201).json({ token });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Username taken' }); // UNIQUE violation
+    console.error(err);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
+
+  try {
+    const { rows } = await pool.query('SELECT id, password_hash FROM users WHERE username=$1', [username]);
+    if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const valid = await verifyPassword(password, rows[0].password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const token = generateToken(rows[0].id);
+    res.json({ token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Protected profile endpoint
+app.get('/api/profile/me', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, username, created_at FROM users WHERE id=$1',
+      [req.userId]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Leaderboard endpoint
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT u.username, COUNT(g.id) as wins
+      FROM users u
+      LEFT JOIN games g ON u.id = g.winner_id
+      GROUP BY u.id, u.username
+      ORDER BY wins DESC
+      LIMIT 10
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
+// Game history endpoint
+app.get('/api/games/my-history', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT g.*, 
+             w.username as winner_username,
+             l.username as loser_username
+      FROM games g
+      JOIN users w ON g.winner_id = w.id
+      JOIN users l ON g.loser_id = l.id
+      WHERE g.winner_id = $1 OR g.loser_id = $1
+      ORDER BY g.created_at DESC
+    `, [req.userId]);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch game history' });
+  }
+});
+
+// Socket.IO authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    return next();
+  } catch {
+    return next(new Error('Unauthorized'));
+  }
+});
+
 io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
   
@@ -185,7 +304,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle player moves
-  socket.on('makeMove', ({ roomId, moveKind }) => {
+  socket.on('makeMove', async ({ roomId, moveKind }) => {
     try {
       console.log(`${socket.id} making move ${moveKind} in room ${roomId}`);
       const game = activeGames[roomId];
@@ -244,8 +363,39 @@ io.on('connection', (socket) => {
         winner: gameEnded ? game.currentPlayerIndex : null // Current player wins since they made the last move
       });
 
-      // Clean up finished games
+      // Record game result in database if game ended
       if (gameEnded) {
+        try {
+          const winnerSocketId = game.players[game.currentPlayerIndex];
+          const loserSocketId = game.players[1 - game.currentPlayerIndex];
+          
+          console.log(`Recording game result: Winner socket ${winnerSocketId}, Loser socket ${loserSocketId}`);
+          
+          // Get user IDs from socket IDs
+          const winnerSocket = io.sockets.sockets.get(winnerSocketId);
+          const loserSocket = io.sockets.sockets.get(loserSocketId);
+          
+          console.log(`Winner socket exists: ${!!winnerSocket}, Loser socket exists: ${!!loserSocket}`);
+          
+          if (winnerSocket && loserSocket && winnerSocket.userId && loserSocket.userId) {
+            console.log(`Inserting game result: Winner ID ${winnerSocket.userId}, Loser ID ${loserSocket.userId}`);
+            
+            const result = await pool.query(
+              'INSERT INTO games (winner_id, loser_id, game_type) VALUES ($1, $2, $3) RETURNING id',
+              [winnerSocket.userId, loserSocket.userId, 'LCTR']
+            );
+            
+            console.log(`Game result recorded successfully with ID ${result.rows[0].id}: Winner ${winnerSocket.userId}, Loser ${loserSocket.userId}`);
+          } else {
+            console.error('Could not record game result: Missing socket connections or user IDs');
+            console.error(`Winner socket: ${winnerSocket ? 'exists' : 'missing'}, userId: ${winnerSocket?.userId}`);
+            console.error(`Loser socket: ${loserSocket ? 'exists' : 'missing'}, userId: ${loserSocket?.userId}`);
+          }
+        } catch (err) {
+          console.error('Error recording game result:', err);
+        }
+        
+        // Clean up finished games
         setTimeout(() => {
           delete activeGames[roomId];
           console.log(`Cleaned up finished game: ${roomId}`);

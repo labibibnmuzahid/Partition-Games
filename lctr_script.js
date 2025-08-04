@@ -853,10 +853,123 @@ class ProLCTRGui {
  goToState(0); // Initial draw
 </script></body></html>`;
     }
+
+    // Multiplayer integration methods
+    initializeMultiplayerGame(boardData, playerNumber, currentPlayer) {
+        console.log('Initializing multiplayer game:', { boardData, playerNumber, currentPlayer });
+        
+        // Initialize the board
+        const board = new Board(boardData);
+        this.game = new Game(board, null); // No AI in multiplayer
+        this.game.currentIndex = currentPlayer;
+        this.playerSymbol = playerNumber === 0 ? 'A' : 'B';
+        this.isMultiplayer = true;
+        
+        // Clear any existing board and redraw
+        this.clearBoard();
+        this.drawBoard();
+        
+        // Show the game card
+        this.gameCard.style.display = 'block';
+        this.setupModal.style.display = 'none';
+        
+        // Update status
+        this.updateMultiplayerStatus(
+            playerNumber === currentPlayer ? 'Your turn' : 'Opponent\'s turn',
+            playerNumber === currentPlayer
+        );
+    }
+
+    updateMultiplayerStatus(statusText, isMyTurn) {
+        this.statusLabel.textContent = statusText;
+        
+        if (isMyTurn) {
+            this.statusLabel.style.color = 'var(--orange)';
+            this.enableInteraction();
+        } else {
+            this.statusLabel.style.color = 'var(--gray)';
+            this.disableInteraction();
+        }
+    }
+
+    enableInteraction() {
+        this.isAnimating = false;
+        this.hoveredMove = null;
+        this.drawBoard();
+    }
+
+    disableInteraction() {
+        this.isAnimating = true; // Prevents interaction
+        this.hoveredMove = null;
+        this.drawBoard();
+    }
+
+    updateBoardFromServer(boardData) {
+        console.log('Updating board from server:', boardData);
+        
+        if (this.game && this.isMultiplayer) {
+            // Update the board state
+            this.game.board = new Board(boardData);
+            
+            // Redraw the board
+            this.clearBoard();
+            this.drawBoard();
+        }
+    }
+
+    endMultiplayerGame(message) {
+        this.isMultiplayer = false;
+        this.statusLabel.textContent = message;
+        this.statusLabel.style.color = message.includes('won') ? 'var(--orange)' : 'var(--gray)';
+        
+        // Show game over modal
+        this.gameOverMessage.textContent = message;
+        this.gameOverModal.style.display = 'flex';
+        
+        // Refresh user stats if multiplayer auth is available
+        if (window.lctrMultiplayerAuth) {
+            window.lctrMultiplayerAuth.loadUserStats();
+        }
+    }
+
+    // Override makeMove to handle multiplayer
+    makeMove(moveKind) {
+        if (this.isMultiplayer) {
+            // Send move to server instead of handling locally
+            if (window.lctrMultiplayerAuth) {
+                window.lctrMultiplayerAuth.makeMove(moveKind);
+            }
+            return;
+        }
+        
+        // Original single-player logic
+        if (this.isAnimating || !this.game || this.game.board.isEmpty()) return;
+        
+        this.isAnimating = true;
+        const gameEnded = this.game.makeMove(moveKind);
+        
+        this.clearHighlights();
+        this.hoveredMove = null;
+        
+        this.animateMove(moveKind, () => {
+            this.drawBoard();
+            
+            if (gameEnded) {
+                this.onGameEnd();
+            } else if (this.game.isAiTurn()) {
+                this.statusLabel.textContent = `${this.game.currentPlayer} is thinking...`;
+                this.aiThinkingIndicator.style.visibility = 'visible';
+                setTimeout(() => this.makeAiMove(), this.AI_THINK_MS);
+            } else {
+                this.statusLabel.textContent = `${this.game.currentPlayer}'s turn`;
+                this.isAnimating = false;
+            }
+        });
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
     // The global script.js handles theme initialization.
     // We just need to initialize our game GUI.
-    window.lctrApp = new ProLCTRGui();
+    window.lctrGame = new ProLCTRGui();
 });

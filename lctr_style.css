@@ -610,3 +610,93 @@ footer {
         min-height: 320px;
     }
 }
+
+/* ==========================================================================
+   Authentication & Multiplayer Modal Styles
+   ========================================================================== */
+
+.hidden {
+    display: none !important;
+}
+
+#auth-message {
+    font-size: 13px;
+    padding: 8px;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+#auth-message.error {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+#auth-message.success {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+[data-theme="dark"] #auth-message.error {
+    background-color: #3d2a2a;
+    color: #ff6b6b;
+    border: 1px solid #5d4037;
+}
+
+[data-theme="dark"] #auth-message.success {
+    background-color: #2a3d2a;
+    color: #4caf50;
+    border: 1px solid #388e3c;
+}
+
+#connection-status {
+    font-size: 13px;
+    border-radius: 4px;
+}
+
+#connection-status.connected {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+#connection-status.disconnected {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+#connection-status.waiting {
+    background-color: #fff8e1;
+    color: #f57c00;
+    border: 1px solid #ffecb3;
+}
+
+[data-theme="dark"] #connection-status.connected {
+    background-color: #2a3d2a;
+    color: #4caf50;
+    border: 1px solid #388e3c;
+}
+
+[data-theme="dark"] #connection-status.disconnected {
+    background-color: #3d2a2a;
+    color: #ff6b6b;
+    border: 1px solid #5d4037;
+}
+
+[data-theme="dark"] #connection-status.waiting {
+    background-color: #3d3d2a;
+    color: #ffc107;
+    border: 1px solid #ff8f00;
+}
+
+#user-profile-section {
+    background-color: var(--gray-light);
+    border-color: var(--gray) !important;
+}
+
+[data-theme="dark"] #user-profile-section {
+    background-color: var(--gray-light);
+    border-color: var(--gray) !important;
+}
