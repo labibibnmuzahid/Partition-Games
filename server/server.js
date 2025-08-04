@@ -1,23 +1,35 @@
+
+const cors = require('cors');
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
 
-// Enable CORS for all origins
+// Environment configuration
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOrigins = isProduction 
+    ? ['https://partitiongames.netlify.app', 'https://www.partitiongames.netlify.app']
+    : ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:3000'];
+
+// Enable CORS for Socket.IO
 const io = socketIo(server, {
     cors: {
-        origin: "*",
+        origin: allowedOrigins,
         methods: ["GET", "POST"],
         allowedHeaders: ["*"],
-        credentials: false
+        credentials: true
     },
     allowEIO3: true
 });
 
-app.use(cors());
+// Enable CORS for Express
+app.use(cors({
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: true
+}));
 app.use(express.json());
 
 // In-memory storage for active games
@@ -253,8 +265,10 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`LCTR Multiplayer Server running on port ${PORT}`);
+    console.log(`Environment: ${isProduction ? 'Production' : 'Development'}`);
+    console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
     console.log(`Active games will be stored in memory`);
 });
 
@@ -263,7 +277,19 @@ app.get('/health', (req, res) => {
     res.json({ 
         status: 'ok', 
         activeGames: Object.keys(activeGames).length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environment: isProduction ? 'production' : 'development'
+    });
+});
+
+// Root endpoint for basic info
+app.get('/', (req, res) => {
+    res.json({
+        service: 'LCTR Multiplayer Server',
+        version: '1.0.0',
+        status: 'running',
+        environment: isProduction ? 'production' : 'development',
+        activeGames: Object.keys(activeGames).length
     });
 });
 

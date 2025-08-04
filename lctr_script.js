@@ -89,8 +89,12 @@ class ProLCTRGui {
         this.aiDifficulty = '50';
         this.gameHistory = [];
         
-        // Multiplayer properties
-        this.socket = io('http://localhost:3001', {
+        // Multiplayer properties - Environment-aware server connection
+        const serverUrl = window.GameConfig ? window.GameConfig.getServerUrl() : 'http://localhost:3001';
+        
+        console.log(`Connecting to multiplayer server: ${serverUrl}`);
+        
+        this.socket = io(serverUrl, {
             forceNew: true,
             reconnection: true,
             timeout: 5000,
