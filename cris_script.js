@@ -154,35 +154,45 @@ class CRIM_GUI{
     this.gameOverMsg=document.getElementById('game-over-message');  
     this.rowsInput=document.getElementById('rows-input');  
     this.helpPopover=document.getElementById('help-popover');  
-    this.undoBtn=document.getElementById('undo-btn');  
     /* buttons */  
     document.getElementById('start-game-btn').addEventListener('click',()=>{SoundManager.play('click');this.startFromInput();});  
     document.getElementById('new-game-btn')  .addEventListener('click',()=>{SoundManager.play('click');this.showSetup();});  
     document.getElementById('play-again-btn').addEventListener('click',()=>{SoundManager.play('click');this.showSetup();});  
-    this.undoBtn.addEventListener('click',()=>{SoundManager.play('click');this.undoMove();});  
     /* partition generation */  
     document.getElementById('generate-partition-btn').addEventListener('click',()=>{SoundManager.play('click');this.generatePartition();});  
     /* theme toggle */  
     const themeTgl=document.getElementById('theme-toggle');  
-    const saved=localStorage.getItem('theme')||'light';  
+    const saved=localStorage.getItem('cris-theme')||'light';  
     document.documentElement.setAttribute('data-theme',saved);  
-    themeTgl.checked=saved==='dark';  
-    themeTgl.addEventListener('change',()=>{  
-      const nt=themeTgl.checked?'dark':'light';  
-      document.documentElement.setAttribute('data-theme',nt);  
-      localStorage.setItem('theme',nt);  
-    });  
+    if(themeTgl){
+      themeTgl.addEventListener('click',()=>{  
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('cris-theme', newTheme);
+        this.updateThemeToggleButton();
+      });  
+      this.updateThemeToggleButton();
+    }
     /* tile themes */  
-    const themeSelect=document.getElementById('theme-select');  
-    themeSelect.addEventListener('change',()=>{SoundManager.play('click');this.applyTileTheme();});  
+    const cycleThemeBtn=document.getElementById('cycle-theme-btn');
+    this.tileThemes = ['grass', 'water', 'fire', 'stone'];
+    this.currentThemeIndex = 0;
+    if(cycleThemeBtn){
+      cycleThemeBtn.addEventListener('click',()=>{SoundManager.play('click');this.cycleTileTheme();});
+    }  
     /* help */  
     const helpBtn=document.getElementById('help-btn');  
-    const helpBtnModal=document.getElementById('help-btn-modal');  
-    helpBtn.addEventListener('mouseenter',()=>this.helpPopover.classList.add('visible'));  
-    helpBtn.addEventListener('mouseleave',()=>this.helpPopover.classList.remove('visible'));  
+    const helpBtnModal=document.getElementById('help-btn-modal');
+    const closeHelpBtn=document.getElementById('close-help-btn');
+    if(helpBtn){
+      helpBtn.addEventListener('click',()=>this.showHelp());  
+    }
     if(helpBtnModal){  
-      helpBtnModal.addEventListener('mouseenter',()=>this.helpPopover.classList.add('visible'));  
-      helpBtnModal.addEventListener('mouseleave',()=>this.helpPopover.classList.remove('visible'));  
+      helpBtnModal.addEventListener('click',()=>this.showHelp());
+    }
+    if(closeHelpBtn){
+      closeHelpBtn.addEventListener('click',()=>this.hideHelp());
     }  
     /* sound */  
     SoundManager.init();  
@@ -197,13 +207,13 @@ class CRIM_GUI{
     this.gameOverBackdrop.classList.remove('visible');  
     this.setupBackdrop.classList.add('visible');  
     this.statusLabel.textContent='Waiting for start…';  
-    this.clearBoard();this.updateUndoButton();  
+    this.clearBoard();  
   }  
   startFromInput(){  
     try{  
       const nums=this.rowsInput.value.trim().split(/\s+/).map(Number);  
       if(nums.length===0||nums.some(n=>!Number.isInteger(n)||n<=0))throw new Error();  
-      this.cpuSide=document.getElementById('cpu-side').value;  
+      this.cpuSide=document.getElementById('ai-select').value;  
       this.vsCPU=(this.cpuSide!=='None');  
       // difficulty slider currently unused  
       this.state=new GameState(nums);  
@@ -212,7 +222,7 @@ class CRIM_GUI{
       const playerLetter=this.state.player===Player.RED?'A':'B';  
       const playerType=this.vsCPU&&this.state.player===this.cpuSide?'Computer':'Human';  
       this.statusLabel.textContent=`Player ${playerLetter} (${playerType}) to move`;  
-      this.updateUndoButton();  
+        
     }catch{alert('Please enter positive integers separated by spaces.');}  
     if(this.vsCPU&&this.state.player===this.cpuSide){  
       setTimeout(()=>this.aiTurnPerfect(),1000);  
@@ -243,7 +253,7 @@ class CRIM_GUI{
       const g=f.grid.map(row=>[...row]);return new Fragment(g,f.x,f.y);  
     });  
     this.gameHistory.push({fragments:fragmentsCopy,player:this.state.player});  
-    this.updateUndoButton();  
+      
   }  
   undoMove(){  
     if(!this.canUndo())return;  
@@ -254,19 +264,49 @@ class CRIM_GUI{
     const playerLetter=this.state.player===Player.RED?'A':'B';  
     const playerType=this.vsCPU&&this.state.player===this.cpuSide?'Computer':'Human';  
     this.statusLabel.textContent=`Player ${playerLetter} (${playerType}) to move`;  
-    this.updateUndoButton();  
+      
   }  
-  canUndo(){return this.state&&this.gameHistory.length>0&&!(this.vsCPU&&this.state.player===this.cpuSide);}  
-  updateUndoButton(){  
-    if(!this.undoBtn)return;  
-    const can=this.canUndo();  
-    if(this.state){this.undoBtn.style.display='flex';this.undoBtn.disabled=!can;}  
-    else{this.undoBtn.style.display='none';}  
-  }  
-  clearGameHistory(){this.gameHistory=[];this.updateUndoButton();}  
-  applyTileTheme(){  
-    const sel=document.getElementById('theme-select'),card=document.getElementById('game-card');  
-    if(sel&&card)card.setAttribute('data-tile-theme',sel.value);  
+  clearGameHistory(){this.gameHistory=[];}  
+  
+  updateThemeToggleButton() {
+    const themeToggle = document.getElementById('theme-toggle');
+    if (!themeToggle) return;
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    themeToggle.textContent = currentTheme === 'dark' ? '☀️ light' : '🌙 dark';
+  }
+
+  cycleTileTheme() {
+    this.currentThemeIndex = (this.currentThemeIndex + 1) % this.tileThemes.length;
+    this.applyTileTheme();
+  }
+
+  applyTileTheme() {
+    const gameCard = document.getElementById('game-card');
+    const cycleBtn = document.getElementById('cycle-theme-btn');
+    if (gameCard) {
+      const theme = this.tileThemes[this.currentThemeIndex];
+      gameCard.setAttribute('data-tile-theme', theme);
+      localStorage.setItem('cris-tile-theme', theme);
+    }
+    if (cycleBtn) {
+      const themeEmojis = { grass: '🌱', water: '💧', fire: '🔥', stone: '🪨' };
+      const theme = this.tileThemes[this.currentThemeIndex];
+      cycleBtn.textContent = `[tiles: ${themeEmojis[theme] || '🌱'}]`;
+    }
+  }
+
+  showHelp() {
+    const helpPopover = document.getElementById('help-popover');
+    if (helpPopover) {
+      helpPopover.style.display = 'block';
+    }
+  }
+
+  hideHelp() {
+    const helpPopover = document.getElementById('help-popover');
+    if (helpPopover) {
+      helpPopover.style.display = 'none';
+    }
   }  
   
   redraw(){  
@@ -323,19 +363,19 @@ class CRIM_GUI{
         SoundManager.play('win');const winner=Player.other(this.state.player)===Player.RED?'A':'B';  
         this.gameOverMsg.textContent=`Player ${winner} wins!`;  
         this.gameOverBackdrop.classList.add('visible');  
-        this.clearBoard();this.updateUndoButton();return;  
+        this.clearBoard();return;  
       }  
       this.redraw();  
       const playerLetter=this.state.player===Player.RED?'A':'B';  
       const playerType=this.vsCPU&&this.state.player===this.cpuSide?'Computer':'Human';  
       this.statusLabel.textContent=`Player ${playerLetter} (${playerType}) to move`;  
-      this.updateUndoButton();  
+        
       if(this.vsCPU&&this.state.player===this.cpuSide)setTimeout(()=>this.aiTurnPerfect(),300);  
     },300);  
   }  
   
   aiTurnPerfect(){  
-    this.updateUndoButton();  
+      
     const totalXor=xorAllFragments(this.state);  
     for(let f=0;f<this.state.fragments.length;f++){  
       const frag=this.state.fragments[f];  
