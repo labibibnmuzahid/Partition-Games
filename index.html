@@ -15,6 +15,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 
+    <!-- MathJax for LaTeX rendering -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
 
     <!-- Stylesheet -->  
     <link rel="stylesheet" href="style.css">  
@@ -62,7 +77,7 @@
         <div class="container">
             <div class="hero">
                 <h1>partition games</h1>
-                <p style="font-family: 'Inter Tight', sans-serif;">explore the fascinating world of integer partition games through interactive gameplay and mathematical strategy.</p>
+                <p class="hero-quote">In small talks, fables, stereotypes and stories — there are almost always, three kinds of "everything" — remember? Well, this is the third kind.</p>
             </div>
 
 
@@ -72,7 +87,7 @@
             <div class="games-grid">
                 <div class="game-card">
                     <h3>LCTR</h3>
-                    <p>A strategic partition game where players take turns choosing numbers to reach target sums. Test your mathematical intuition against challenging AI opponents.</p>
+                    <p>When it's their turn, the user can remove either the left column, or the top row.</p>
                     <div class="game-buttons">
                         <a href="lctr_page.html" class="play-button">play now</a>
                         <a href="wikidocus/lctr/lctrdocu.html" class="rules-link">rules</a>
@@ -81,7 +96,7 @@
 
                 <div class="game-card">
                     <h3>CRIM</h3>
-                    <p>Navigate complex partition strategies in this challenging combinatorial game. Master the art of number partitioning with multiple difficulty levels.</p>
+                    <p>The user may remove any row or column - but the two divided parts would get merged after each move.</p>
                     <div class="game-buttons">
                         <a href="crim_page.html" class="play-button">play now</a>
                         <a href="wikidocus/crim/crim.html" class="rules-link">rules</a>
@@ -90,7 +105,7 @@
 
                 <div class="game-card">
                     <h3>CRIS</h3>
-                    <p>Experience fast-paced partition gameplay with dynamic rules. Perfect your strategy and compete against sophisticated AI algorithms.</p>
+                    <p>Moves are same as CRIM, but no merging in this case. Fragments parts will be independent, meaning a move in one dividend wouldn't impact others.</p>
                     <div class="game-buttons">
                         <a href="cris_page.html" class="play-button">play now</a>
                         <a href="wikidocus/cris/crisdocu.html" class="rules-link">rules</a>
@@ -99,7 +114,7 @@
 
                 <div class="game-card">
                     <h3>Sato-Welter</h3>
-                    <p>Remove a hook (an upside-down L shape) from any square: all squares to the right in the row, and all squares below in the column. Outsmart your opponent!</p>
+                    <p>Remove a hook (an upside-down L shape) from any square: all squares to the right in the row, and all squares below in the column.</p>
                     <div class="game-buttons">
                         <a href="sato_welter_page.html" class="play-button">play now</a>
                         <a href="wikidocus/Sato-Walter/satowalter.html" class="rules-link">rules</a>
@@ -108,7 +123,7 @@
 
                 <div class="game-card">
                     <h3>IRT</h3>
-                    <p>Strategic row removal game where players take turns eliminating entire rows. Master the classic Nim-style gameplay with beautiful tile themes.</p>
+                    <p>Some cells of a row can be removed as a move as long as it has same or more number of cells than the row below it.</p>
                     <div class="game-buttons">
                         <a href="irt_page.html" class="play-button">play now</a>
                         <a href="wikidocus/irt/irt.html" class="rules-link">rules</a>
@@ -117,7 +132,7 @@
 
                 <div class="game-card">
                     <h3>Corner</h3>
-                    <p>Strategic corner elimination game following specific rules for consecutive rows. Master the unique gameplay mechanics and challenging AI opponents.</p>
+                    <p>In a uniformed partition, a corner is the last cell of a row; however, in case of consecutive rows with equal length, the cell only from the last row is considered as a corner. In this game, a random subset of corners gets removed from the partition.</p>
                     <div class="game-buttons">
                         <a href="corner_page.html" class="play-button">play now</a>
                         <a href="wikidocus/corner/corner.html" class="rules-link">rules</a>
@@ -126,7 +141,7 @@
 
                 <div class="game-card">
                     <h3>AntiCorner</h3>
-                    <p>The inverse of Corner with modified elimination rules. Experience a fresh take on partition games with innovative strategic elements.</p>
+                    <p>Moves take place just like Sato-Welter; however, the user chooses an Anti-corner, instead of a random cell.</p>
                     <div class="game-buttons">
                         <a href="anticorners_page.html" class="play-button">play now</a>
                         <a href="wikidocus/anticorner/anticorner.html" class="rules-link">rules</a>
@@ -135,7 +150,7 @@
 
                 <div class="game-card">
                     <h3>Continuous Corner</h3>
-                    <p>A Corner variant where players must select consecutive ranges of corner pieces. Strategic depth with simplified move constraints.</p>
+                    <p>A Corner variant where players must select consecutive ranges of corner pieces.</p>
                     <div class="game-buttons">
                         <a href="continuous_corner_page.html" class="play-button">play now</a>
                         <a href="wikidocus/continuous_corner/continuous_corner.html" class="rules-link">rules</a>
@@ -144,7 +159,7 @@
 
                 <div class="game-card">
                     <h3>CRPM</h3>
-                    <p>Partizan version of CRIM where Player A can only remove rows and Player B can only remove columns. Asymmetric strategic gameplay.</p>
+                    <p>Partizan version of CRIM where Player A can only remove rows and Player B can only remove columns.</p>
                     <div class="game-buttons">
                         <a href="crpm_page.html" class="play-button">play now</a>
                         <a href="wikidocus/crpm/crpm.html" class="rules-link">rules</a>
@@ -153,7 +168,7 @@
 
                 <div class="game-card">
                     <h3>CRPS</h3>
-                    <p>Partizan CRIS variant with independent fragments. Player A controls rows, Player B controls columns in fragment-based strategic gameplay.</p>
+                    <p>Partizan varition of CRIS, where Player A controls rows, and Player B controls columns in fragment paritions.</p>
                     <div class="game-buttons">
                         <a href="crps_page.html" class="play-button">play now</a>
                         <a href="wikidocus/crps/crps.html" class="rules-link">rules</a>
@@ -161,13 +176,24 @@
                 </div>
 
                 <div class="game-card">
-                    <h3>CRIT</h3>
-                    <p>Enhanced IRT with dual movement options. Choose between row moves and column moves each turn for expanded strategic depth in Young diagram games.</p>
-                    <div class="game-buttons">
-                        <a href="crit_page.html" class="play-button">play now</a>
-                        <a href="wikidocus/crit/crit.html" class="rules-link">rules</a>
-                    </div>
+                <h3>CRIT</h3>
+                <p>An enhanced adaptation of RIT; in addition to “row-comparison” removal, a new move <i>column comparison</i>, too, will be legal: some cell of column $c_i$ can be removed as long as it is greater than or equal to $c_{i + 1}$.</p>
+                <div class="game-buttons">
+                    <a href="crit_page.html" class="play-button">play now</a>
+                    <a href="wikidocus/crit/crit.html" class="rules-link">rules</a>
                 </div>
+            </div>
+
+            <div class="game-card">
+                <h3>SCC</h3>
+                <p>SCC – Strict Continuous Corner; each move will begin with either the topmost or bottom most corner. Then, a sequential subset of corners will be chosen for removal. </p>
+                <div class="game-buttons">
+                    <a href="corner_king_page.html" class="play-button">play now</a>
+                    <a href="wikidocus/corner_king/corner_king.html" class="rules-link">rules</a>
+                </div>
+            </div>
+
+
             </div>
 
             <div class="multiplayer-section">
