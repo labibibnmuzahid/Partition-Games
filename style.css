@@ -157,6 +157,15 @@ main {
     margin: 0 auto;
 }
 
+.hero-quote {
+    font-size: 14px;
+    color: var(--gray-dark);
+    font-family: 'Inter Tight', sans-serif;
+    max-width: 600px;
+    margin: 20px auto 0 auto;
+    font-style: italic;
+}
+
 /* Games Section */
 .section-title {
     font-size: 24px;
