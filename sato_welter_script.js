@@ -91,6 +91,23 @@ class Fragment {
     hasMoves() {
         return this.squares().length > 0;
     }
+    
+    // Get current row sizes from the grid
+    getRowSizes() {
+        const rowLengths = [];
+        for (let r = 0; r < this.rows; r++) {
+            let length = 0;
+            for (let c = 0; c < this.cols; c++) {
+                if (this.grid[r][c] === 1) {
+                    length++;
+                }
+            }
+            if (length > 0) {
+                rowLengths.push(length);
+            }
+        }
+        return rowLengths.sort((a, b) => b - a); // Sort in descending order
+    }
 }
 
 class GameState {
@@ -754,7 +771,7 @@ class SatoWelterGui {
             if (window.DatabaseUtils) {
                 await window.DatabaseUtils.storeGameInDatabase(
                     'SATO',
-                    this.game.getBoard().getRows(),
+                    this.game.getBoard().getRowSizes(),
                     this.movesSequence,
                     winner && winner.charAt(0),
                     this.gameStartTime

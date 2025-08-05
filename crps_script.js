@@ -127,7 +127,24 @@ class Fragment{
     const g=Array.from({length:rows},()=>Array(cols).fill(false));  
     rowSizes.forEach((len,r)=>{for(let c=0;c<len;c++)g[r][c]=true;});  
     return new Fragment(g);  
-  }  
+  }
+  
+  getRows() {
+    // Return row lengths as an array
+    const rowLengths = [];
+    for (let r = 0; r < this.rows; r++) {
+      let length = 0;
+      for (let c = 0; c < this.cols; c++) {
+        if (this.grid[r][c]) {
+          length++;
+        }
+      }
+      if (length > 0) {
+        rowLengths.push(length);
+      }
+    }
+    return rowLengths.sort((a, b) => b - a); // Sort in descending order
+  }
 }  
   
 class GameState{  

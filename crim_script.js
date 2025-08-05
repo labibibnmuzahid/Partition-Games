@@ -41,6 +41,12 @@ class Board {
         const rowLengths = this.grid.map(row => row.reduce((sum, cell) => sum + cell, 0)).filter(len => len > 0);
         return JSON.stringify(rowLengths.sort((a, b) => b - a));
     }
+    
+    getRows() {
+        // Return row lengths as an array
+        const rowLengths = this.grid.map(row => row.reduce((sum, cell) => sum + cell, 0)).filter(len => len > 0);
+        return rowLengths.sort((a, b) => b - a);
+    }
 
     // Methods to check which rows and columns are alive
     rowsAlive() {
