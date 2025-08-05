@@ -486,7 +486,7 @@ class ProLCTRGui {
                     'LCTR',
                     this.initialPartition,
                     this.movesSequence,
-                    winner,
+                    (winner && typeof winner === 'string') ? winner.charAt(0) : winner,
                     this.gameStartTime
                 );
             }
