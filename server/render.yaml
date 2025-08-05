@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: lctr-multiplayer
+    name: partition-games-server
     env: node
     plan: free
     buildCommand: npm install
