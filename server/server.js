@@ -225,6 +225,123 @@ app.get('/api/games/my-history', authMiddleware, async (req, res) => {
   }
 });
 
+// === GAME RECORDS API ENDPOINTS ===
+// These endpoints handle the new game records format for all partition games
+
+// Store a new game record
+app.post('/api/game-records', async (req, res) => {
+  try {
+    const { gameType, partitionData, timestampPlayed, movesSequence, gameOutcome } = req.body;
+    
+    // Validate required fields
+    if (!gameType || !partitionData) {
+      return res.status(400).json({ error: 'Missing required fields: gameType and partitionData' });
+    }
+    
+    // Validate game outcome if provided
+    if (gameOutcome && !['A', 'B'].includes(gameOutcome)) {
+      return res.status(400).json({ error: 'Game outcome must be "A" or "B"' });
+    }
+    
+    const { rows } = await pool.query(`
+      INSERT INTO game_records (game_type, partition_data, timestamp_played, moves_sequence, game_outcome)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [
+      gameType,
+      partitionData,
+      timestampPlayed || new Date(),
+      movesSequence || '',
+      gameOutcome || null
+    ]);
+    
+    res.status(201).json({
+      success: true,
+      record: rows[0]
+    });
+  } catch (err) {
+    console.error('Error storing game record:', err);
+    res.status(500).json({ error: 'Failed to store game record' });
+  }
+});
+
+// Get game records with optional filtering
+app.get('/api/game-records', async (req, res) => {
+  try {
+    const { gameType, limit = 50, offset = 0 } = req.query;
+    
+    let query = 'SELECT * FROM game_records';
+    let params = [];
+    
+    if (gameType) {
+      query += ' WHERE game_type = $1';
+      params.push(gameType);
+      query += ' ORDER BY timestamp_played DESC LIMIT $2 OFFSET $3';
+      params.push(parseInt(limit), parseInt(offset));
+    } else {
+      query += ' ORDER BY timestamp_played DESC LIMIT $1 OFFSET $2';
+      params.push(parseInt(limit), parseInt(offset));
+    }
+    
+    const { rows } = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      records: rows,
+      total: rows.length
+    });
+  } catch (err) {
+    console.error('Error fetching game records:', err);
+    res.status(500).json({ error: 'Failed to fetch game records' });
+  }
+});
+
+// Get a specific game record by ID
+app.get('/api/game-records/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const { rows } = await pool.query('SELECT * FROM game_records WHERE id = $1', [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Game record not found' });
+    }
+    
+    res.json({
+      success: true,
+      record: rows[0]
+    });
+  } catch (err) {
+    console.error('Error fetching game record:', err);
+    res.status(500).json({ error: 'Failed to fetch game record' });
+  }
+});
+
+// Get game statistics
+app.get('/api/game-records/stats/:gameType', async (req, res) => {
+  try {
+    const { gameType } = req.params;
+    
+    const { rows } = await pool.query(`
+      SELECT 
+        COUNT(*) as total_games,
+        COUNT(CASE WHEN game_outcome = 'A' THEN 1 END) as player_a_wins,
+        COUNT(CASE WHEN game_outcome = 'B' THEN 1 END) as player_b_wins,
+        COUNT(CASE WHEN game_outcome IS NULL THEN 1 END) as incomplete_games
+      FROM game_records 
+      WHERE game_type = $1
+    `, [gameType]);
+    
+    res.json({
+      success: true,
+      stats: rows[0]
+    });
+  } catch (err) {
+    console.error('Error fetching game stats:', err);
+    res.status(500).json({ error: 'Failed to fetch game statistics' });
+  }
+});
+
 // Socket.IO authentication middleware (optional for basic gameplay)
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;

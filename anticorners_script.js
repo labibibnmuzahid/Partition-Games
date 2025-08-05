@@ -440,6 +440,8 @@ class AnticornersGui {
         this.undoStack = [];
         this.gameHistory = [];
         this.gameStates = [];
+        this.movesSequence = []; // Track moves for database storage
+        this.gameStartTime = new Date();
         
         // Record initial game state
         const initialVisualState = {
@@ -598,6 +600,9 @@ class AnticornersGui {
             timestamp: new Date().toISOString()
         });
         
+        // Track move for database storage (format: R2C3 for row 2, column 3)
+        this.movesSequence.push(`R${r}C${c}`);
+        
         // Animate the removal
         this.animateRemoval(r, c, () => {
             const finished = this.game.makeMove(r, c);
@@ -615,6 +620,9 @@ class AnticornersGui {
             if (finished) {
                 this.gameOverMessage.textContent = `Player ${this.game.currentPlayer} wins!`;
                 this.gameOverModal.classList.add('visible');
+                
+                // Store game data in database
+                this.storeGameInDatabase(this.game.currentPlayer);
             } else {
                 this.updateStatus();
                 if (this.game.isAiTurn()) {
@@ -690,6 +698,11 @@ class AnticornersGui {
             this.gameHistory.pop();
         }
         
+        // Remove the last move from the sequence for database storage
+        if (this.movesSequence.length > 0) {
+            this.movesSequence.pop();
+        }
+        
         // Remove the last visual state
         if (this.gameStates.length > 1) {
             this.gameStates.pop();
@@ -710,6 +723,43 @@ class AnticornersGui {
     updateDownloadButton() {
         if (this.downloadBtn) {
             this.downloadBtn.style.display = this.gameStates.length > 1 ? 'inline-flex' : 'none';
+        }
+    }
+
+    async storeGameInDatabase(winner) {
+        try {
+            // Prepare game data in the required format
+            const gameData = {
+                gameType: 'ANTI',
+                partitionData: this.initialPartition.join(' '),
+                timestampPlayed: this.gameStartTime.toISOString(),
+                movesSequence: this.movesSequence.join(' '),
+                gameOutcome: winner
+            };
+
+            // Get server URL from global config
+            const serverUrl = typeof window.GameConfig !== 'undefined' 
+                ? window.GameConfig.getServerUrl() 
+                : 'http://localhost:3001'; // fallback for local development
+
+            const response = await fetch(`${serverUrl}/api/game-records`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(gameData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Game successfully stored in database:', result.record.id);
+            } else {
+                const error = await response.json();
+                console.warn('Failed to store game in database:', error.error);
+            }
+        } catch (error) {
+            console.warn('Could not connect to database server:', error.message);
+            // Game continues normally even if database storage fails
         }
     }
 
