@@ -904,3 +904,16 @@ window.addEventListener('DOMContentLoaded', () => {
     // We just need to initialize our game GUI.
     window.lctrGame = new ProLCTRGui();
 });
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      Board, // Make sure this line is present
+      grundy,
+      perfectMove,
+      staircase,
+      square,
+      hook,
+      randomPartition,
+      Game
+    };
+  }

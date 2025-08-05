@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const cors = require('cors');
 const express = require('express');
 const http = require('http');
@@ -28,6 +29,9 @@ pool.connect((err, client, release) => {
 });
 
 const app = express();
+// This serves all the static files (html, css, js) from the parent directory
+app.use(express.static(path.join(__dirname, '..')));
+
 const server = http.createServer(app);
 
 // Environment configuration
@@ -123,6 +127,12 @@ function isValidMove(board, moveKind) {
   }
   return false;
 }
+
+// This handles the root route and sends the main HTML file
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'lctr_page.html'));
+});
+
 
 // Authentication routes
 app.post('/api/auth/register', async (req, res) => {
