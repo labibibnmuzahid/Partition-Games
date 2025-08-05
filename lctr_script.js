@@ -89,6 +89,11 @@ class ProLCTRGui {
         this.aiDifficulty = '50';
         this.gameHistory = [];
         
+        // Database tracking properties
+        this.initialPartition = [];
+        this.movesSequence = [];
+        this.gameStartTime = null;
+        
         // Multiplayer properties - will be set by multiplayer auth
         this.socket = null; // Will be set by multiplayer auth
         this.roomId = null;
@@ -326,6 +331,8 @@ class ProLCTRGui {
     startGame(rows, aiSide) {
         this.initialPartition = [...rows];
         this.gameHistory = [];
+        this.movesSequence = []; // Reset moves tracking
+        this.gameStartTime = new Date(); // Track when game started
         this.game = new Game(new Board(rows), aiSide);
         this.hoveredMove = null;
         this.isAnimating = false;
@@ -443,12 +450,20 @@ class ProLCTRGui {
     
     finishMove(moveKind) {
         this.saveGameState();
+        
+        // Track move for database (R for row, C for column)
+        this.movesSequence.push(moveKind === 'row' ? 'R' : 'C');
+        
         const finished = this.game.makeMove(moveKind);
         this.isAnimating = false;
         if (finished) {
             SoundManager.play('win');
             this.gameOverMessage.textContent = `Player ${this.game.currentPlayer} wins!`;
             this.gameOverModal.classList.add('visible');
+            
+            // Save game to database
+            this.storeGameInDatabase(this.game.currentPlayer);
+            
             this.redrawBoard();
             return;
         }
@@ -462,6 +477,22 @@ class ProLCTRGui {
         const boardCopy = { grid: this.game.board.rows.map(row => row) };
         const gameState = { board: boardCopy, currentIndex: this.game.currentIndex };
         this.gameHistory.push(gameState);
+    }
+
+    async storeGameInDatabase(winner) {
+        try {
+            if (typeof window.DatabaseUtils !== 'undefined') {
+                await window.DatabaseUtils.storeGameInDatabase(
+                    'LCTR',
+                    this.initialPartition,
+                    this.movesSequence,
+                    winner,
+                    this.gameStartTime
+                );
+            }
+        } catch (error) {
+            console.warn('Could not store LCTR game in database:', error.message);
+        }
     }
 
     clearBoard() {

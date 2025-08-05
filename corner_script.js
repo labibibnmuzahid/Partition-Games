@@ -298,6 +298,10 @@ class ProCornerGui {
         this.gameHistory = [];
         this.initialPartition = [];
         
+        // Database tracking properties
+        this.movesSequence = [];
+        this.gameStartTime = null;
+        
         // Selection state for new Corner logic
         this.selectedPieces = []; // Array of {row, col} objects
         this.selectablePieces = []; // Array of {row, col} objects representing last pieces
@@ -421,6 +425,8 @@ class ProCornerGui {
         this.hoveredMove = null;
         this.isAnimating = false;
         this.gameHistory = [];
+        this.movesSequence = []; // Reset moves tracking
+        this.gameStartTime = new Date(); // Track when game started
         
         // Clear Grundy memoization for new game
         grundyMemo.clear();
@@ -600,12 +606,23 @@ class ProCornerGui {
     
     finishMove(selectedPieces = null) {
         this.saveGameState();
+        
+        // Track move for database - format selected pieces as coordinates
+        if (selectedPieces && selectedPieces.length > 0) {
+            const moveStr = selectedPieces.map(p => `R${p.row}C${p.col}`).join(',');
+            this.movesSequence.push(moveStr);
+        }
+        
         const finished = this.game.makeMove(selectedPieces);
         this.isAnimating = false;
         if (finished) {
             SoundManager.play('win');
             this.gameOverMessage.textContent = `Player ${this.game.currentPlayer} wins!`;
             this.gameOverModal.classList.add('visible');
+            
+            // Save game to database
+            this.storeGameInDatabase(this.game.currentPlayer);
+            
             this.redrawBoard();
             return;
         }
@@ -625,6 +642,22 @@ class ProCornerGui {
         };
         this.gameHistory = this.gameHistory || [];
         this.gameHistory.push(gameState);
+    }
+
+    async storeGameInDatabase(winner) {
+        try {
+            if (typeof window.DatabaseUtils !== 'undefined') {
+                await window.DatabaseUtils.storeGameInDatabase(
+                    'CORNER',
+                    this.initialPartition,
+                    this.movesSequence,
+                    winner,
+                    this.gameStartTime
+                );
+            }
+        } catch (error) {
+            console.warn('Could not store Corner game in database:', error.message);
+        }
     }
 
 
