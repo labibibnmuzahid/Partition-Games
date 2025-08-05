@@ -301,7 +301,7 @@ const Sound = {
 // ────────────────────────────────────────────────────────────  
 // 5.  GUI controller   (hover logic updated)  
 // ────────────────────────────────────────────────────────────  
-class IRTGui {  
+class RITGui {  
   CELL=40; MARGIN=20; ANIM=350; AI_WAIT=650;
   currentCellSize = this.CELL; // Dynamic cell size  
   
@@ -703,9 +703,9 @@ class IRTGui {
 // ────────────────────────────────────────────────────────────  
 // 6.  Boot  
 // ────────────────────────────────────────────────────────────  
-function downloadGameIRT() {
-  if (!window.irtApp || !window.irtApp.game) return;
-  const gameState = JSON.stringify(window.irtApp.game.board.rows);
+function downloadGameRIT() {
+  if (!window.ritApp || !window.ritApp.game) return;
+  const gameState = JSON.stringify(window.ritApp.game.board.rows);
   const blob = new Blob([gameState], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -716,19 +716,19 @@ function downloadGameIRT() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-function downloadGameHTML_IRT() {
-  if (!window.irtApp || !window.irtApp.gameHistory || window.irtApp.gameHistory.length === 0) {
+function downloadGameHTML_RIT() {
+  if (!window.ritApp || !window.ritApp.gameHistory || window.ritApp.gameHistory.length === 0) {
     alert('No game state found.');
     return;
   }
-  let history = window.irtApp.gameHistory.slice();
-  const initialPartition = window.irtApp.initialPartition || history[0] || [];
+  let history = window.ritApp.gameHistory.slice();
+  const initialPartition = window.ritApp.initialPartition || history[0] || [];
   // --- REWRITE: Always ensure the last state is an empty board ---
   const isEmpty = arr => Array.isArray(arr) && (arr.length === 0 || arr.every(x => x === 0));
   if (!isEmpty(history[history.length - 1])) {
     history.push([]); // Always add empty board as last state
   }
-  const title = `IRT Game Replay - ${new Date().toLocaleDateString()}`;
+  const title = `RIT Game Replay - ${new Date().toLocaleDateString()}`;
   let html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -831,7 +831,7 @@ function downloadGameHTML_IRT() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'irt_game.html';
+  a.download = 'rit_game.html';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -839,10 +839,10 @@ function downloadGameHTML_IRT() {
 }
 window.addEventListener('load', () => {
   const btn = document.getElementById('download-btn');
-  if (btn) btn.addEventListener('click', downloadGameIRT);
+  if (btn) btn.addEventListener('click', downloadGameRIT);
 });
 window.addEventListener('load', () => {
   const btn = document.getElementById('download-btn');
-  if (btn) btn.addEventListener('click', downloadGameHTML_IRT);
+  if (btn) btn.addEventListener('click', downloadGameHTML_RIT);
 });
-window.onload = ()=>{ window.irtApp = new IRTGui(); };  
+window.onload = ()=>{ window.ritApp = new RITGui(); };  

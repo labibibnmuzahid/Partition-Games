@@ -122,7 +122,7 @@ class Board {
   legalMoves() {  
     const moves = [];  
     
-    // Row moves (original IRT logic)
+    // Row moves (original RIT logic)
     const last = this.rows.length - 1;  
     for (let r = 0; r <= last; r++) {  
       const len = this.rows[r];  
@@ -859,7 +859,7 @@ class CRITGui {
     <div class="container">
         <h1>${title}</h1>
         <div class="game-info">
-            <strong>CRIT Rules:</strong> Enhanced IRT with both row and column moves.<br>
+            <strong>CRIT Rules:</strong> Enhanced RIT with both row and column moves.<br>
             <strong>Row Moves:</strong> Remove blocks from right end of selectable rows.<br>
             <strong>Column Moves:</strong> Remove blocks from bottom of selectable columns where changed(c_i) ≥ c_(i+1).<br>
             <strong>Victory:</strong> The player who cannot make a legal move loses.
