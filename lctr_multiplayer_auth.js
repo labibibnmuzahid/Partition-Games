@@ -344,7 +344,12 @@ class LCTRMultiplayerAuth {
             
             // Update the board state in the main game
             if (window.lctrGame && data.board) {
-                window.lctrGame.updateBoardFromServer(data.board);
+                window.lctrGame.updateBoardFromServer(
+                    data.board, 
+                    data.currentPlayer, 
+                    data.gameEnded, 
+                    data.winner
+                );
             }
             
             if (data.gameEnded) {
@@ -476,6 +481,9 @@ class LCTRMultiplayerAuth {
             return;
         }
         
+        // Set the roomId when joining
+        this.roomId = roomId;
+        
         this.socket.emit('joinGame', roomId);
         this.roomInfoLabel.textContent = 'Joining game...';
         this.roomInfoLabel.style.color = 'var(--orange)';
@@ -528,6 +536,7 @@ class LCTRMultiplayerAuth {
 
     handleGameEnd() {
         this.loadUserStats(); // Refresh stats after game
+        this.endMultiplayerGame(); // Clean up the multiplayer game state
     }
 
     endMultiplayerGame() {
@@ -536,6 +545,10 @@ class LCTRMultiplayerAuth {
         this.playerNumber = null;
         this.gameEnded = false;
         this.winner = null;
+        
+        // Update room info to show that the game has ended
+        this.roomInfoLabel.textContent = 'Game ended. You can create or join a new game.';
+        this.roomInfoLabel.style.color = 'var(--gray)';
     }
 }
 
