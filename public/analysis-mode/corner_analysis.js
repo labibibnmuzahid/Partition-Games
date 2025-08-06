@@ -125,8 +125,8 @@ function calculateOptimalMoves(board) {
         
         // A move is optimal if it leads to a P-position (g-value = 0)
         if (childG === 0) {
-            // Format the move as coordinate strings
-            const moveString = move.map(piece => `R${piece.row + 1}C${piece.col + 1}`).join(',');
+            // Format the move as coordinate strings (0-based indexing)
+            const moveString = move.map(piece => `R${piece.row}C${piece.col}`).join(',');
             optimalMoves.push(moveString);
         }
     }
@@ -168,6 +168,12 @@ class CornerAnalysis {
         this.move_incentive = document.getElementById('move-incentive');
         this.optimal_moves = document.getElementById('optimal-moves');
         this.gNumberChart = document.getElementById('g-number-chart');
+        
+        // Set canvas dimensions if not already set
+        if (this.gNumberChart && (!this.gNumberChart.width || !this.gNumberChart.height)) {
+            this.gNumberChart.width = 250;
+            this.gNumberChart.height = 120;
+        }
     }
 
     bindEventListeners() {
@@ -179,6 +185,10 @@ class CornerAnalysis {
                 if (this.isEnabled && this.gui.game) {
                     // If analysis mode is enabled mid-game, update the panel
                     this.updatePanel();
+                }
+                // Redraw the board to show/hide labels
+                if (this.gui.game) {
+                    this.gui.redrawBoard();
                 }
             });
         }
@@ -201,7 +211,6 @@ class CornerAnalysis {
     
     // Called when a new game starts
     onGameStart() {
-        this.toggleVisibility(this.isEnabled);
         if (this.isEnabled) {
             // Clear caches for the new game
             uptimalityMemo.clear();
@@ -214,7 +223,12 @@ class CornerAnalysis {
                 this.gNumberHistory.push(initialG);
             }
             
+            // Ensure visibility is properly set and panel is updated
+            this.toggleVisibility(true);
             this.updatePanel();
+        } else {
+            // If analysis mode is disabled, ensure it's hidden
+            this.toggleVisibility(false);
         }
     }
 
@@ -337,7 +351,16 @@ class CornerAnalysis {
         
         const board = this.gui.game.board;
         if (board.isEmpty()) {
-            this.analysisContainer.style.display = 'none';
+            // Don't hide the container, just show that there's no data
+            this.p_n_status.textContent = 'Game not started';
+            this.g_value.textContent = '-';
+            this.uptimality.textContent = '-';
+            this.reachable_moves.textContent = '-';
+            this.game_depth.textContent = '-';
+            this.reversible_moves.textContent = '-';
+            this.optimal_moves.textContent = 'No moves available';
+            this.move_incentive.textContent = '-';
+            this.drawAdvantageChart();
             return;
         }
 

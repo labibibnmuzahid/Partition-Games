@@ -633,7 +633,7 @@ class ProCornerGui {
     const centerOffset = this.getBoardCenterOffset();
     let detectedMove = null;
 
-    // Check if mouse is over any cell in the board
+    // Check if mouse is over any cell in the board (excluding label areas)
     for (let r = 0; r < this.game.board.height(); r++) {
       for (let c = 0; c < this.game.board.rows[r]; c++) {
         const cellLeft = centerOffset.x + c * (this.CELL + this.GAP);
@@ -809,14 +809,14 @@ class ProCornerGui {
     const maxWidth = Math.max(...this.initialPartition);
     const maxHeight = this.initialPartition.length;
 
-    // Calculate dimensions including gaps
+    // Calculate dimensions including gaps (no label space in centering)
     const boardDataWidth = maxWidth * this.CELL + (maxWidth - 1) * this.GAP;
     const boardDataHeight = maxHeight * this.CELL + (maxHeight - 1) * this.GAP;
     const minDimension = 480;
     let boardWidth = Math.max(this.MARGIN * 2 + boardDataWidth, minDimension);
     let boardHeight = Math.max(this.MARGIN * 2 + boardDataHeight, minDimension);
 
-    // Calculate centering offset - only center horizontally
+    // Calculate centering offset - keep original centering
     return {
       x: (boardWidth - boardDataWidth) / 2,
       y: this.MARGIN, // Keep original top margin
@@ -825,12 +825,13 @@ class ProCornerGui {
 
   redrawBoard() {
     this.boardArea.querySelectorAll(".tile").forEach((tile) => tile.remove());
+    this.boardArea.querySelectorAll(".label-cell").forEach((label) => label.remove());
     if (!this.game) return;
 
     const maxWidth = Math.max(...this.initialPartition);
     const maxHeight = this.initialPartition.length;
 
-    // Calculate dimensions including gaps
+    // Calculate dimensions including gaps (no label space in centering)
     const boardDataWidth = maxWidth * this.CELL + (maxWidth - 1) * this.GAP;
     const boardDataHeight = maxHeight * this.CELL + (maxHeight - 1) * this.GAP;
     const minDimension = 480;
@@ -840,7 +841,33 @@ class ProCornerGui {
     // Calculate centering offset
     const centerOffset = this.getBoardCenterOffset();
 
-    // Draw all cells (present and removed) without labels
+    // Draw row labels (on the left side) - only in analysis mode
+    if (this.analysis && this.analysis.isEnabled) {
+      for (let r = 0; r < maxHeight; r++) {
+        const rowLabel = document.createElement("div");
+        rowLabel.className = "label-cell";
+        rowLabel.textContent = r; // Row numbers start from 0
+        rowLabel.style.width = `${this.CELL * 0.6}px`; // Smaller size like CRIM
+        rowLabel.style.height = `${this.CELL * 0.6}px`;
+        rowLabel.style.left = `${centerOffset.x - this.CELL * 0.6 - this.GAP}px`;
+        rowLabel.style.top = `${centerOffset.y + r * (this.CELL + this.GAP) + (this.CELL * 0.2)}px`;
+        this.boardArea.appendChild(rowLabel);
+      }
+
+      // Draw column labels (on the top) - only in analysis mode
+      for (let c = 0; c < maxWidth; c++) {
+        const colLabel = document.createElement("div");
+        colLabel.className = "label-cell";
+        colLabel.textContent = c; // Column numbers start from 0
+        colLabel.style.width = `${this.CELL * 0.6}px`; // Smaller size like CRIM
+        colLabel.style.height = `${this.CELL * 0.6}px`;
+        colLabel.style.left = `${centerOffset.x + c * (this.CELL + this.GAP) + (this.CELL * 0.2)}px`;
+        colLabel.style.top = `${centerOffset.y - this.CELL * 0.6 - this.GAP}px`;
+        this.boardArea.appendChild(colLabel);
+      }
+    }
+
+    // Draw all cells (present and removed)
     for (let r = 0; r < maxHeight; r++) {
       for (let c = 0; c < this.initialPartition[r]; c++) {
         const tile = document.createElement("div");
@@ -895,7 +922,11 @@ class ProCornerGui {
       const col = Math.floor((x - centerOffset.x) / (this.CELL + this.GAP));
       const row = Math.floor((y - centerOffset.y) / (this.CELL + this.GAP));
 
-      this.handleTileClick(row, col);
+      // Only handle clicks within the actual board area (not on labels)
+      if (row >= 0 && row < this.game.board.height() && 
+          col >= 0 && col < this.game.board.rows[row]) {
+        this.handleTileClick(row, col);
+      }
     } else {
       // Enter selection mode
       this.enterSelectionMode();
