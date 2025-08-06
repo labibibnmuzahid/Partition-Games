@@ -2,6 +2,14 @@
 
 // Continuous Corner Game: Like Corner, but players can only select consecutive corners
 
+// Tile theme constants
+const TILE_THEMES = ['grass', 'stone', 'ice'];
+const TILE_THEME_NAMES = {
+    'grass': '🌱',
+    'stone': '🪨', 
+    'ice': '🧊'
+};
+
 class Board {
     constructor(rows) { this.rows = [...rows]; }
     isEmpty() { return this.rows.length === 0 || this.rows.every(r => r === 0); }
@@ -297,7 +305,12 @@ class ContinuousCornerGui {
         this.gameOverModal = null;
         this.helpPopover = null;
         this.themeToggle = null;
-        this.themeSelect = null;
+        this.cycleThemeBtn = null;
+        this.currentTileThemeIndex = 0;
+        
+        // Board rendering constants
+        this.CELL = 40; // Tile size in pixels (match anticorners)
+        this.MARGIN = 20; // Board margin
         
         // Setup UI elements
         this.rowsInput = null;
@@ -334,6 +347,12 @@ class ContinuousCornerGui {
         this.getDOMElements();
         this.bindEventListeners();
         this.initTheme();
+        
+        // Set initial status
+        if (this.statusLabel) {
+            this.statusLabel.textContent = 'ready to play';
+        }
+        
         this.showSetupModal();
     }
 
@@ -347,7 +366,9 @@ class ContinuousCornerGui {
         this.gameOverModal = document.getElementById('game-over-modal-backdrop');
         this.helpPopover = document.getElementById('help-popover');
         this.themeToggle = document.getElementById('theme-toggle');
-        this.themeSelect = document.getElementById('theme-select');
+        this.cycleThemeBtn = document.getElementById('cycle-theme-btn');
+        
+
         
         // Setup elements
         this.rowsInput = document.getElementById('rows-input');
@@ -405,11 +426,17 @@ class ContinuousCornerGui {
         
         // Theme events
         if (this.themeToggle) {
-            this.themeToggle.addEventListener('change', () => this.toggleTheme());
+            this.themeToggle.addEventListener('click', () => {
+                this.toggleTheme();
+            });
         }
         
-        if (this.themeSelect) {
-            this.themeSelect.addEventListener('change', () => this.changeTileTheme());
+        if (this.cycleThemeBtn) {
+            this.cycleThemeBtn.addEventListener('click', () => this.cycleTileTheme());
+            this.cycleThemeBtn.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                this.cycleTileTheme();
+            });
         }
         
         // Selection control events
@@ -448,20 +475,30 @@ class ContinuousCornerGui {
     }
 
     initTheme() {
-        // Load saved theme
+        // Load saved theme from localStorage
         const savedTheme = localStorage.getItem('continuous-corner-theme');
+        const icon = this.themeToggle ? this.themeToggle.querySelector('.theme-icon') : null;
+    
+        if (savedTheme === 'dark') {
+            // If 'dark' is saved, apply the dark theme attribute and set the sun icon
+            document.documentElement.setAttribute('data-theme', 'dark');
+            if (icon) icon.textContent = '☀️';
+        } else {
+            // For any other case (null, 'light', etc.), ensure light mode by removing the attribute and setting the moon icon
+            document.documentElement.removeAttribute('data-theme');
+            if (icon) icon.textContent = '🌙';
+        }
+    
+        // This part for the tile theme remains the same
         const savedTileTheme = localStorage.getItem('continuous-corner-tile-theme');
-        
-        if (savedTheme === 'dark' && this.themeToggle) {
-            this.themeToggle.checked = true;
-            document.body.classList.add('dark-theme');
+        if (savedTileTheme) {
+            const themeIndex = TILE_THEMES.indexOf(savedTileTheme);
+            if (themeIndex !== -1) {
+                this.currentTileThemeIndex = themeIndex;
+            }
         }
-        
-        if (savedTileTheme && this.themeSelect) {
-            this.themeSelect.value = savedTileTheme;
-            this.changeTileTheme();
-        }
-    }
+        this.updateTileThemeButton();
+    }    
 
     showSetupModal() {
         if (this.setupModal) {
@@ -485,8 +522,8 @@ class ContinuousCornerGui {
         const difficultyValue = this.difficultySlider ? parseInt(this.difficultySlider.value) : 2;
         
         // Map numeric difficulty to text
-        const difficultyMap = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
-        const difficulty = difficultyMap[difficultyValue] || 'Medium';
+        const difficultyMap = { 1: 'easy', 2: 'medium', 3: 'hard' };
+        const difficulty = difficultyMap[difficultyValue] || 'medium';
         
         let rows;
         try {
@@ -518,6 +555,11 @@ class ContinuousCornerGui {
         this.updateGameBoard();
         this.updateStatus();
         
+        // Board area should not be clickable - tiles handle their own clicks
+        if (this.boardArea) {
+            this.boardArea.classList.remove('clickable');
+        }
+        
         if (this.game.isAiTurn()) {
             this.aiTurn();
         }
@@ -526,37 +568,56 @@ class ContinuousCornerGui {
     updateGameBoard() {
         if (!this.boardArea || !this.game) return;
         
+        // Clear existing tiles
         this.boardArea.innerHTML = '';
         
         if (this.game.board.isEmpty()) {
-            this.boardArea.innerHTML = '<p>Game Complete!</p>';
+            this.boardArea.innerHTML = '<p>game complete!</p>';
+            if (this.boardArea) {
+                this.boardArea.classList.remove('clickable');
+            }
             return;
         }
         
-        const boardElement = document.createElement('div');
-        boardElement.className = 'board';
+        // Set up absolute positioning context
+        this.boardArea.style.position = 'relative';
         
-        const squares = this.game.board.squares();
+
         const rows = this.game.board.rows;
         
+        // Create tiles with absolute positioning
         for (let r = 0; r < rows.length; r++) {
-            const rowElement = document.createElement('div');
-            rowElement.className = 'row';
-            
             for (let c = 0; c < rows[r]; c++) {
                 const tile = document.createElement('div');
                 tile.className = 'tile';
+                tile.id = `tile-${r}-${c}`;
                 tile.dataset.row = r;
                 tile.dataset.col = c;
-                tile.id = `tile-${r}-${c}`;
                 
-                rowElement.appendChild(tile);
+                // Position absolutely
+                tile.style.position = 'absolute';
+                tile.style.width = `${this.CELL}px`;
+                tile.style.height = `${this.CELL}px`;
+                tile.style.left = `${this.MARGIN + c * this.CELL}px`;
+                tile.style.top = `${this.MARGIN + r * this.CELL}px`;
+                
+                // Apply tile theme
+                const currentTheme = TILE_THEMES[this.currentTileThemeIndex];
+                tile.setAttribute('data-tile-theme', currentTheme);
+                
+                this.boardArea.appendChild(tile);
             }
-            
-            boardElement.appendChild(rowElement);
         }
         
-        this.boardArea.appendChild(boardElement);
+        // Set board area size
+        const maxWidth = Math.max(...rows);
+        const boardWidth = this.MARGIN * 2 + maxWidth * this.CELL;
+        const boardHeight = this.MARGIN * 2 + rows.length * this.CELL;
+        
+        const minDimension = 480;
+        this.boardArea.style.width = `${Math.max(boardWidth, minDimension)}px`;
+        this.boardArea.style.height = `${Math.max(boardHeight, minDimension)}px`;
+        
         this.updateSelectionDisplay();
     }
 
@@ -597,6 +658,8 @@ class ContinuousCornerGui {
         
         const row = parseInt(tile.dataset.row);
         const col = parseInt(tile.dataset.col);
+        
+
         
         if (this.isInSelectionMode) {
             this.handleTileClick(row, col);
@@ -675,7 +738,17 @@ class ContinuousCornerGui {
         // Clear all selection classes
         this.clearSelectionDisplay();
         
-        if (!this.isInSelectionMode) return;
+        if (!this.isInSelectionMode) {
+            // When not in selection mode, make all selectable pieces clickable
+            const selectablePieces = this.game.board.getSelectableLastPieces();
+            for (const piece of selectablePieces) {
+                const tile = document.getElementById(`tile-${piece.row}-${piece.col}`);
+                if (tile) {
+                    tile.classList.add('selectable');
+                }
+            }
+            return;
+        }
         
         // Add selectable class to all selectable pieces
         for (const piece of this.selectablePieces) {
@@ -788,7 +861,7 @@ class ContinuousCornerGui {
         if (!this.game || !this.game.isAiTurn() || this.game.board.isEmpty()) return;
         
         if (this.aiThinkingIndicator) {
-            this.aiThinkingIndicator.classList.add('visible');
+            this.aiThinkingIndicator.classList.add('thinking');
         }
         
         setTimeout(() => {
@@ -827,7 +900,7 @@ class ContinuousCornerGui {
                 }
                 
                 if (this.aiThinkingIndicator) {
-                    this.aiThinkingIndicator.classList.remove('visible');
+                    this.aiThinkingIndicator.classList.remove('thinking');
                 }
                 
                 if (selectedPieces && selectedPieces.length > 0) {
@@ -840,7 +913,7 @@ class ContinuousCornerGui {
             } catch (error) {
                 console.error('AI move error:', error);
                 if (this.aiThinkingIndicator) {
-                    this.aiThinkingIndicator.classList.remove('visible');
+                    this.aiThinkingIndicator.classList.remove('thinking');
                 }
                 // Fallback to default move
                 this.executeWithAnimation();
@@ -883,22 +956,44 @@ class ContinuousCornerGui {
         if (!this.difficultySlider || !this.difficultyLabel) return;
         
         const value = parseInt(this.difficultySlider.value);
-        const labels = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
-        this.difficultyLabel.textContent = labels[value] || 'Medium';
+        const labels = { 1: 'easy', 2: 'medium', 3: 'hard' };
+        this.difficultyLabel.textContent = labels[value] || 'medium';
     }
 
     toggleTheme() {
-        document.body.classList.toggle('dark-theme');
-        const isDark = document.body.classList.contains('dark-theme');
-        localStorage.setItem('continuous-corner-theme', isDark ? 'dark' : 'light');
+        // Check if the dark theme attribute currently exists
+        const isCurrentlyDark = document.documentElement.hasAttribute('data-theme');
+        const icon = this.themeToggle ? this.themeToggle.querySelector('.theme-icon') : null;
+    
+        if (isCurrentlyDark) {
+            // SWITCH TO LIGHT MODE: Remove the attribute, update localStorage, and set the moon icon
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('continuous-corner-theme', 'light');
+            if (icon) icon.textContent = '🌙';
+        } else {
+            // SWITCH TO DARK MODE: Add the attribute, update localStorage, and set the sun icon
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('continuous-corner-theme', 'dark');
+            if (icon) icon.textContent = '☀️';
+        }
     }
 
-    changeTileTheme() {
-        if (!this.themeSelect || !this.gameCard) return;
+    updateTileThemeButton() {
+        const currentTheme = TILE_THEMES[this.currentTileThemeIndex];
+        const emoji = TILE_THEME_NAMES[currentTheme];
+        if (this.cycleThemeBtn) {
+            this.cycleThemeBtn.textContent = `[tiles: ${emoji}]`;
+        }
         
-        const theme = this.themeSelect.value;
-        this.gameCard.dataset.tileTheme = theme;
-        localStorage.setItem('continuous-corner-tile-theme', theme);
+        if (this.gameCard) {
+            this.gameCard.setAttribute('data-tile-theme', currentTheme);
+        }
+        localStorage.setItem('continuous-corner-tile-theme', currentTheme);
+    }
+
+    cycleTileTheme() {
+        this.currentTileThemeIndex = (this.currentTileThemeIndex + 1) % TILE_THEMES.length;
+        this.updateTileThemeButton();
     }
 
     toggleHelp() {
