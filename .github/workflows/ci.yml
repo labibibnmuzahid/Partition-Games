@@ -1,11 +1,28 @@
 name: LCTR CI Tests
 
 # This tells GitHub to run the workflow on every push or pull request to the main branch
+# but only when LCTR-related files are changed
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'lctr_page.html'
+      - 'lctr_script.js'
+      - 'server/tests/unit/lctr_board.test.js'
+      - 'server/tests/unit/lctr_script.test.js'
+      - 'server/cypress/e2e/lctr_game.cy.js'
+      - 'server/package.json'
+      - 'server/package-lock.json'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'lctr_page.html'
+      - 'lctr_script.js'
+      - 'server/tests/unit/lctr_board.test.js'
+      - 'server/tests/unit/lctr_script.test.js'
+      - 'server/cypress/e2e/lctr_game.cy.js'
+      - 'server/package.json'
+      - 'server/package-lock.json'
 
 # This defines the series of jobs to run
 jobs:
@@ -37,12 +54,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Step 4: Run the Jest unit tests
-      - name: Run unit tests
+      # Step 4: Run the Jest unit tests for LCTR
+      - name: Run LCTR unit tests
         run: npm test
 
-      # Step 5: Run the Cypress E2E tests using the official Cypress GitHub Action
-      - name: Run E2E tests
+      # Step 5: Run the Cypress E2E tests for LCTR using the official Cypress GitHub Action
+      - name: Run LCTR E2E tests
         uses: cypress-io/github-action@v6
         with:
           # Specify the working directory for Cypress

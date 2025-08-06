@@ -1,4 +1,4 @@
-describe('LCTR Game Flow', () => {
+describe('LCTR Game E2E Tests', () => {
     it('should load the page and allow a game to start', () => {
       // Visit the local URL where your game is served
       cy.visit('http://localhost:3001/lctr_page.html'); // Ensure this is the correct URL for your frontend

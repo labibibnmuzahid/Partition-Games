@@ -1,7 +1,7 @@
 const { Board } = require('../../../lctr_script.js');
 
 // 'describe' groups related tests together
-describe('Board Class', () => {
+describe('LCTR Board Class', () => {
   let board;
 
   // 'beforeEach' runs before each test in this suite.
