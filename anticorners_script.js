@@ -468,10 +468,11 @@ class AnticornersGui {
         
         if (!this.game || this.game.board.isEmpty()) return;
         
-        /* 1️⃣ make the container the positioning context */
+        /* Make the container the positioning context */
         this.boardArea.style.position = 'relative';
         
-        const extraLeftMargin = this.game.board.width() > 30 ? 20 : 0;
+        // Calculate board centering offset
+        const centerOffset = this.getBoardCenterOffset();
         
         // Draw all cells from the 2D grid
         this.game.board.getAllCells().forEach(({ r, c, value }) => {
@@ -479,17 +480,15 @@ class AnticornersGui {
             tile.className = 'tile';
             tile.id = `tile-${r}-${c}`;
             
-            /* 2️⃣ be sure every tile is absolutely-positioned */
             tile.style.position = 'absolute';
-            
             tile.style.width = `${this.CELL}px`;
             tile.style.height = `${this.CELL}px`;
-            tile.style.left = `${this.MARGIN + extraLeftMargin + c * this.CELL}px`;
-            tile.style.top = `${this.MARGIN + r * this.CELL}px`;
+            tile.style.left = `${centerOffset.x + c * this.CELL}px`;
+            tile.style.top = `${centerOffset.y + r * this.CELL}px`;
             
-            // Force visible background for debugging
-            tile.style.backgroundColor = value === 2 ? '#ff6b6b' : '#86efac';
-            tile.style.border = value === 2 ? '3px solid #e03131' : '3px solid #22c55e';
+            // Remove forced styling - let CSS handle it
+            tile.style.backgroundColor = '';
+            tile.style.border = '';
             
             // Style based on cell value
             if (value === 2) {
@@ -499,16 +498,13 @@ class AnticornersGui {
             this.boardArea.appendChild(tile);
         });
         
-        // Set board area size
+        // Set board area size with proper centering
         const boardDataWidth = this.game.board.width() * this.CELL;
         const boardDataHeight = this.game.board.height() * this.CELL;
         
-        let boardWidth = this.MARGIN * 2 + boardDataWidth + extraLeftMargin;
-        let boardHeight = this.MARGIN * 2 + boardDataHeight;
-        
         const minDimension = 480;
-        boardWidth = Math.max(boardWidth, minDimension);
-        boardHeight = Math.max(boardHeight, minDimension);
+        let boardWidth = Math.max(this.MARGIN * 2 + boardDataWidth, minDimension);
+        let boardHeight = Math.max(this.MARGIN * 2 + boardDataHeight, minDimension);
         
         this.boardArea.style.width = `${boardWidth}px`;
         this.boardArea.style.height = `${boardHeight}px`;
@@ -519,6 +515,23 @@ class AnticornersGui {
         this.boardArea.addEventListener('click', () => this.handleMouseClick());
     }
 
+    getBoardCenterOffset() {
+        if (!this.game || this.game.board.isEmpty()) return { x: this.MARGIN, y: this.MARGIN };
+
+        const boardDataWidth = this.game.board.width() * this.CELL;
+        const boardDataHeight = this.game.board.height() * this.CELL;
+        const minDimension = 480;
+        
+        let boardWidth = Math.max(this.MARGIN * 2 + boardDataWidth, minDimension);
+        let boardHeight = Math.max(this.MARGIN * 2 + boardDataHeight, minDimension);
+
+        // Calculate centering offset - only center horizontally, keep original top margin
+        return {
+            x: (boardWidth - boardDataWidth) / 2,
+            y: this.MARGIN, // Keep original top margin instead of centering vertically
+        };
+    }
+
     handleMouseMove(event) {
         if (!this.game || this.game.isAiTurn() || this.isAnimating) return;
         
@@ -526,14 +539,14 @@ class AnticornersGui {
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
         
-        const extraLeftMargin = this.game.board.width() > 30 ? 20 : 0;
+        const centerOffset = this.getBoardCenterOffset();
         let detectedMove = null;
         
         // Check if mouse is over an anticorner position
         const anticorners = this.game.board.getAnticorners();
         for (const [r, c] of anticorners) {
-            const cellLeft = this.MARGIN + extraLeftMargin + c * this.CELL;
-            const cellTop = this.MARGIN + r * this.CELL;
+            const cellLeft = centerOffset.x + c * this.CELL;
+            const cellTop = centerOffset.y + r * this.CELL;
             const cellRight = cellLeft + this.CELL;
             const cellBottom = cellTop + this.CELL;
             
@@ -553,17 +566,32 @@ class AnticornersGui {
     }
 
     highlightHoveredMove() {
-        // Remove previous highlights
-        this.gameCard.querySelectorAll('.tile.highlighted').forEach(tile => {
-            tile.classList.remove('highlighted');
+        // Remove previous highlights and will-remove classes
+        this.gameCard.querySelectorAll('.tile.highlighted, .tile.will-remove').forEach(tile => {
+            tile.classList.remove('highlighted', 'will-remove');
         });
         
-        // Highlight hovered anticorner
+        // Highlight hovered anticorner and preview cells to be removed
         if (this.hoveredMove) {
             const [r, c] = this.hoveredMove;
-            const tile = document.getElementById(`tile-${r}-${c}`);
-            if (tile) {
-                tile.classList.add('highlighted');
+            
+            // Highlight the anticorner itself
+            const anticornerTile = document.getElementById(`tile-${r}-${c}`);
+            if (anticornerTile) {
+                anticornerTile.classList.add('highlighted');
+            }
+            
+            // Preview all cells that will be removed when this anticorner is selected
+            // (all cells at positions (i,j) where i >= r and j >= c)
+            for (let i = r; i < this.game.board.height(); i++) {
+                for (let j = c; j < this.game.board.width(); j++) {
+                    if (this.game.board.grid[i] && this.game.board.grid[i][j] > 0) {
+                        const tile = document.getElementById(`tile-${i}-${j}`);
+                        if (tile && !tile.classList.contains('highlighted')) {
+                            tile.classList.add('will-remove');
+                        }
+                    }
+                }
             }
         }
     }
