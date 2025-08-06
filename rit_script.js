@@ -642,7 +642,7 @@ class RITGui {
     try {
       if (window.DatabaseUtils) {
         await window.DatabaseUtils.storeGameInDatabase(
-          'IRT',
+          'RIT',
           this.initialPartition,
           this.movesSequence,
           winner && winner.charAt(0),

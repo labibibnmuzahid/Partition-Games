@@ -13,7 +13,7 @@ const GAME_TYPE_CODES = {
     'CORNER': 'CORN',
     'SCC': 'SCC',
     'CONTINUOUS_CORNER': 'CCORN',
-    'IRT': 'IRT',
+    'RIT': 'RIT',
     'CRIT': 'CRIT',
     'CRPM': 'CRPM',
     'CRPS': 'CRPS'

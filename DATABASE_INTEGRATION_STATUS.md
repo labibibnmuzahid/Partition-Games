@@ -59,8 +59,8 @@ As of the latest test, the database contains records for:
 - **Move Format**: `R` or `C` (row/column removal)
 - **Status**: ✅ Working (Fixed getRows() method)
 
-#### 8. **IRT** (`IRT`)
-- **File**: `irt_script.js`
+#### 8. **RIT** (`RIT`)
+- **File**: `rit_script.js`
 - **Move Format**: `R${row}C${start}-${end}` (range notation)
 - **Status**: ✅ Working
 

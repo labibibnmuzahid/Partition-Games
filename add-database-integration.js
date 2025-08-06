@@ -24,9 +24,9 @@ const GAMES_CONFIG = [
         moveFormat: 'rowCol'
     },
     { 
-        script: 'irt_script.js', 
-        page: 'irt_page.html',
-        gameType: 'IRT',
+        script: 'rit_script.js',
+page: 'rit_page.html',
+gameType: 'RIT',
         moveFormat: 'coordinates' // moves like R2C3-R2C5 for range
     },
     { 
