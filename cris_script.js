@@ -148,7 +148,7 @@ class GameState{
     if(kind==='row')frag.deleteRow(lineIdx);else frag.deleteCol(lineIdx);  
     const newFrags=frag.splitIntoFragments();  
   
-    // give each newborn fragment its own id  
+    // give each newborn fragment the next available seniority id  
     if(newFrags.length){  
       newFrags.forEach(nf=>{  
         nf.partitionId = this.nextPartitionId++;  
@@ -166,7 +166,25 @@ class GameState{
     }else if(newFrags.length===1){newFrags[0].x=originalX;newFrags[0].y=originalY;}  
   
     this.fragments.splice(fIdx,1,...newFrags);  
+    
+    // Renumber fragments by seniority (creation order)
+    this.renumberFragmentsBySeniority();
+    
     this.player=Player.other(this.player);  
+  }
+  
+  // Renumber fragments by seniority (creation order)
+  renumberFragmentsBySeniority() {
+    // Sort fragments by their original partitionId (creation order)
+    this.fragments.sort((a, b) => a.partitionId - b.partitionId);
+    
+    // Renumber them sequentially starting from 1
+    this.fragments.forEach((frag, index) => {
+      frag.partitionId = index + 1;
+    });
+    
+    // Update nextPartitionId to be one more than the highest current ID
+    this.nextPartitionId = this.fragments.length + 1;
   }  
 }  
   
