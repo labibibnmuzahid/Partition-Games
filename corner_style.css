@@ -54,7 +54,7 @@
 /* Global Styles */
 body {
     font-family: 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Menlo', monospace;
-    background: var(--bg-primary);
+    background: var(--white);
     color: var(--text-primary);
     line-height: 1.6;
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -78,6 +78,7 @@ html {
 header {
     padding: 0px 30px;
     background-color: var(--white);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .header-content {

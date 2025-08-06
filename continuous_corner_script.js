@@ -311,6 +311,8 @@ class ContinuousCornerGui {
         // Board rendering constants
         this.CELL = 40; // Tile size in pixels (match anticorners)
         this.MARGIN = 20; // Board margin
+        this.GAP = 1; // Gap between tiles, like in RIT
+        this.currentCellSize = this.CELL; // For dynamic resizing
         
         // Setup UI elements
         this.rowsInput = null;
@@ -365,7 +367,6 @@ class ContinuousCornerGui {
         this.setupModal = document.getElementById('setup-modal-backdrop');
         this.gameOverModal = document.getElementById('game-over-modal-backdrop');
         this.helpPopover = document.getElementById('help-popover');
-        this.themeToggle = document.getElementById('theme-toggle');
         this.cycleThemeBtn = document.getElementById('cycle-theme-btn');
         
 
@@ -424,12 +425,6 @@ class ContinuousCornerGui {
             this.downloadBtn.addEventListener('click', () => this.downloadGameHistory());
         }
         
-        // Theme events
-        if (this.themeToggle) {
-            this.themeToggle.addEventListener('click', () => {
-                this.toggleTheme();
-            });
-        }
         
         if (this.cycleThemeBtn) {
             this.cycleThemeBtn.addEventListener('click', () => this.cycleTileTheme());
@@ -475,21 +470,13 @@ class ContinuousCornerGui {
     }
 
     initTheme() {
-        // Load saved theme from localStorage
-        const savedTheme = localStorage.getItem('continuous-corner-theme');
-        const icon = this.themeToggle ? this.themeToggle.querySelector('.theme-icon') : null;
-    
-        if (savedTheme === 'dark') {
-            // If 'dark' is saved, apply the dark theme attribute and set the sun icon
-            document.documentElement.setAttribute('data-theme', 'dark');
-            if (icon) icon.textContent = '☀️';
-        } else {
-            // For any other case (null, 'light', etc.), ensure light mode by removing the attribute and setting the moon icon
-            document.documentElement.removeAttribute('data-theme');
-            if (icon) icon.textContent = '🌙';
+        // Defer to the global script for dark/light theme logic.
+        // This check is similar to the one in anticorners_script.js.
+        if (typeof updateThemeToggleButton === 'function') {
+            updateThemeToggleButton();
         }
     
-        // This part for the tile theme remains the same
+        // This part for the tile theme remains the same, as it's specific to this game.
         const savedTileTheme = localStorage.getItem('continuous-corner-tile-theme');
         if (savedTileTheme) {
             const themeIndex = TILE_THEMES.indexOf(savedTileTheme);
@@ -498,7 +485,7 @@ class ContinuousCornerGui {
             }
         }
         this.updateTileThemeButton();
-    }    
+    }
 
     showSetupModal() {
         if (this.setupModal) {
@@ -585,8 +572,23 @@ class ContinuousCornerGui {
 
         const rows = this.game.board.rows;
         
-        // Create tiles with absolute positioning
-        for (let r = 0; r < rows.length; r++) {
+        // --- START: New Centering and Gap Logic from RIT ---
+        const boardDataWidth = this.game.board.width() * this.currentCellSize + (this.game.board.width() - 1) * this.GAP;  
+        const boardDataHeight = this.game.board.height() * this.currentCellSize + (this.game.board.height() - 1) * this.GAP;  
+        let boardWidth = this.MARGIN * 2 + boardDataWidth;
+        let boardHeight = this.MARGIN * 2 + boardDataHeight;
+        const minDimension = 480;
+        boardWidth = Math.max(boardWidth, minDimension);
+        boardHeight = Math.max(boardHeight, minDimension);
+        
+        // Calculate horizontal centering offset
+        const actualContentWidth = this.MARGIN * 2 + boardDataWidth;
+        const centerOffsetX = (boardWidth - actualContentWidth) / 2;
+
+        const boardRows = this.game.board.rows;
+        
+        // Create tiles with absolute positioning, gaps, and centering
+        for (let r = 0; r < boardRows.length; r++) {
             for (let c = 0; c < rows[r]; c++) {
                 const tile = document.createElement('div');
                 tile.className = 'tile';
@@ -596,10 +598,11 @@ class ContinuousCornerGui {
                 
                 // Position absolutely
                 tile.style.position = 'absolute';
-                tile.style.width = `${this.CELL}px`;
-                tile.style.height = `${this.CELL}px`;
-                tile.style.left = `${this.MARGIN + c * this.CELL}px`;
-                tile.style.top = `${this.MARGIN + r * this.CELL}px`;
+                tile.style.width = `${this.currentCellSize}px`;
+                tile.style.height = `${this.currentCellSize}px`;
+                // Apply centering offset and gaps
+                tile.style.left = `${centerOffsetX + this.MARGIN + c * (this.currentCellSize + this.GAP)}px`;
+                tile.style.top = `${this.MARGIN + r * (this.currentCellSize + this.GAP)}px`;
                 
                 // Apply tile theme
                 const currentTheme = TILE_THEMES[this.currentTileThemeIndex];
@@ -610,13 +613,9 @@ class ContinuousCornerGui {
         }
         
         // Set board area size
-        const maxWidth = Math.max(...rows);
-        const boardWidth = this.MARGIN * 2 + maxWidth * this.CELL;
-        const boardHeight = this.MARGIN * 2 + rows.length * this.CELL;
-        
-        const minDimension = 480;
-        this.boardArea.style.width = `${Math.max(boardWidth, minDimension)}px`;
-        this.boardArea.style.height = `${Math.max(boardHeight, minDimension)}px`;
+        this.boardArea.style.width = `${boardWidth}px`;
+        this.boardArea.style.height = `${boardHeight}px`;
+        // --- END: New Centering and Gap Logic from RIT ---
         
         this.updateSelectionDisplay();
     }
@@ -651,21 +650,20 @@ class ContinuousCornerGui {
     }
 
     handleMouseClick(event) {
-        if (this.isAnimating || !this.game || this.game.board.isEmpty()) return;
+        if (this.isAnimating || !this.game || this.game.isAiTurn() || this.game.board.isEmpty()) return;
         
         const tile = event.target.closest('.tile');
         if (!tile) return;
         
-        const row = parseInt(tile.dataset.row);
-        const col = parseInt(tile.dataset.col);
-        
-
-        
-        if (this.isInSelectionMode) {
-            this.handleTileClick(row, col);
-        } else {
+        // If not in selection mode, enter it first
+        if (!this.isInSelectionMode) {
             this.enterSelectionMode();
         }
+        
+        // Now, handle the tile click for selection logic
+        const row = parseInt(tile.dataset.row);
+        const col = parseInt(tile.dataset.col);
+        this.handleTileClick(row, col);
     }
 
     handleTileClick(row, col) {
@@ -958,24 +956,6 @@ class ContinuousCornerGui {
         const value = parseInt(this.difficultySlider.value);
         const labels = { 1: 'easy', 2: 'medium', 3: 'hard' };
         this.difficultyLabel.textContent = labels[value] || 'medium';
-    }
-
-    toggleTheme() {
-        // Check if the dark theme attribute currently exists
-        const isCurrentlyDark = document.documentElement.hasAttribute('data-theme');
-        const icon = this.themeToggle ? this.themeToggle.querySelector('.theme-icon') : null;
-    
-        if (isCurrentlyDark) {
-            // SWITCH TO LIGHT MODE: Remove the attribute, update localStorage, and set the moon icon
-            document.documentElement.removeAttribute('data-theme');
-            localStorage.setItem('continuous-corner-theme', 'light');
-            if (icon) icon.textContent = '🌙';
-        } else {
-            // SWITCH TO DARK MODE: Add the attribute, update localStorage, and set the sun icon
-            document.documentElement.setAttribute('data-theme', 'dark');
-            localStorage.setItem('continuous-corner-theme', 'dark');
-            if (icon) icon.textContent = '☀️';
-        }
     }
 
     updateTileThemeButton() {
