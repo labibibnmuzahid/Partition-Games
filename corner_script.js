@@ -287,6 +287,7 @@ const SoundManager = {
 class ProCornerGui {
     constructor() {
         this.CELL = 40;
+        this.GAP = 2;  // Gap between tiles
         this.MARGIN = 20;
         this.ANIMATION_MS = 500;
         this.AI_THINK_MS = 800;
@@ -294,7 +295,9 @@ class ProCornerGui {
         this.isAnimating = false;
         this.hoveredMove = null;
         this.aiDifficulty = 'Medium';
-        this.currentTheme = 'grass';
+        this.currentTileTheme = 'grass';
+        this.tileThemes = ['grass', 'stone', 'ice'];
+        this.tileThemeEmojis = { grass: '🔥', stone: '🪨', ice: '🧊' };
         this.gameHistory = [];
         this.initialPartition = [];
         
@@ -321,7 +324,7 @@ class ProCornerGui {
         this.aiThinkingIndicator = document.getElementById('ai-thinking-indicator');
         this.newGameBtn = document.getElementById('new-game-btn');
         this.themeToggle = document.getElementById('theme-toggle');
-        this.themeSelect = document.getElementById('theme-select');
+        this.cycleThemeBtn = document.getElementById('cycle-theme-btn');
         this.setupModal = document.getElementById('setup-modal-backdrop');
         this.gameOverModal = document.getElementById('game-over-modal-backdrop');
         this.rowsInput = document.getElementById('rows-input');
@@ -334,6 +337,8 @@ class ProCornerGui {
         this.startGameBtn = document.getElementById('start-game-btn');
         this.playAgainBtn = document.getElementById('play-again-btn');
         this.gameOverMessage = document.getElementById('game-over-message');
+        
+
         this.helpBtn = document.getElementById('help-btn');
         this.helpBtnModal = document.getElementById('help-btn-modal');
         this.helpPopover = document.getElementById('help-popover');
@@ -347,9 +352,32 @@ class ProCornerGui {
 
     bindEventListeners() {
         this.startGameBtn.addEventListener('click', () => this.processSetup());
-        this.newGameBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
-        this.playAgainBtn.addEventListener('click', () => { SoundManager.play('click'); this.showSetupModal(); });
-        this.themeToggle.addEventListener('change', () => { SoundManager.play('click'); this.toggleTheme(); });
+        
+        // Bind new game button
+        if (this.newGameBtn) {
+            this.newGameBtn.addEventListener('click', (e) => { 
+                e.preventDefault();
+                SoundManager.play('click'); 
+                this.showSetupModal(); 
+            });
+        }
+        
+        // Bind play again button  
+        if (this.playAgainBtn) {
+            this.playAgainBtn.addEventListener('click', (e) => { 
+                e.preventDefault();
+                SoundManager.play('click'); 
+                this.showSetupModal(); 
+            });
+        }
+        // Theme toggle is handled by global script.js
+        if (this.cycleThemeBtn) {
+            this.cycleThemeBtn.addEventListener('click', () => this.cycleTileTheme());
+            this.cycleThemeBtn.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                this.cycleTileTheme();
+            });
+        }
         this.difficultySlider.addEventListener('input', () => this.updateDifficultyLabel());
         this.helpBtn.addEventListener('mouseenter', () => this.showHelp());
         this.helpBtn.addEventListener('mouseleave', () => this.hideHelp());
@@ -366,9 +394,7 @@ class ProCornerGui {
                 this.downloadGame(); 
             });
         }
-        if (this.themeSelect) {
-            this.themeSelect.addEventListener('change', () => this.applyTileTheme());
-        }
+        // Theme select removed - using cycle button instead
         
         // Selection control buttons
         if (this.confirmSelectionBtn) {
@@ -384,9 +410,18 @@ class ProCornerGui {
         this.boardArea.addEventListener('click', (event) => this.handleMouseClick(event));
     }
 
-    applyTileTheme() {
-        if (this.themeSelect && this.gameCard) {
-            this.gameCard.setAttribute('data-tile-theme', this.themeSelect.value);
+    cycleTileTheme() {
+        const currentIndex = this.tileThemes.indexOf(this.currentTileTheme);
+        const nextIndex = (currentIndex + 1) % this.tileThemes.length;
+        this.currentTileTheme = this.tileThemes[nextIndex];
+        
+        if (this.gameCard) {
+            this.gameCard.setAttribute('data-tile-theme', this.currentTileTheme);
+        }
+        
+        if (this.cycleThemeBtn) {
+            const emoji = this.tileThemeEmojis[this.currentTileTheme];
+            this.cycleThemeBtn.textContent = `[tiles: ${emoji}]`;
         }
     }
 
@@ -407,7 +442,15 @@ class ProCornerGui {
                 default: this.aiDifficulty = 'Medium'; break;
             }
             
-            this.applyTileTheme();
+            // Apply initial grass tile theme
+            this.currentTileTheme = 'grass';
+            if (this.gameCard) {
+                this.gameCard.setAttribute('data-tile-theme', this.currentTileTheme);
+            }
+            if (this.cycleThemeBtn) {
+                const emoji = this.tileThemeEmojis[this.currentTileTheme];
+                this.cycleThemeBtn.textContent = `[tiles: ${emoji}]`;
+            }
             
             this.setupModal.classList.remove('visible');
             this.setupModal.style.opacity = '0';
@@ -506,15 +549,14 @@ class ProCornerGui {
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
         
-        // Calculate which cells will be affected by Corner move
-        const extraLeftMargin = this.game.board.width() > 30 ? 20 : 0;
+        const centerOffset = this.getBoardCenterOffset();
         let detectedMove = null;
         
         // Check if mouse is over any cell in the board
         for (let r = 0; r < this.game.board.height(); r++) {
             for (let c = 0; c < this.game.board.rows[r]; c++) {
-                const cellLeft = this.MARGIN + extraLeftMargin + c * this.CELL;
-                const cellTop = this.MARGIN + r * this.CELL;
+                const cellLeft = centerOffset.x + c * (this.CELL + this.GAP);
+                const cellTop = centerOffset.y + r * (this.CELL + this.GAP);
                 const cellRight = cellLeft + this.CELL;
                 const cellBottom = cellTop + this.CELL;
                 
@@ -617,7 +659,8 @@ class ProCornerGui {
         this.isAnimating = false;
         if (finished) {
             SoundManager.play('win');
-            this.gameOverMessage.textContent = `Player ${this.game.currentPlayer} wins!`;
+            const winner = this.game.currentPlayer.toLowerCase() === 'a' ? 'alice' : 'bob';
+            this.gameOverMessage.textContent = `${winner} wins!`;
             this.gameOverModal.classList.add('visible');
             
             // Save game to database
@@ -662,13 +705,42 @@ class ProCornerGui {
 
 
 
+    getBoardCenterOffset() {
+        if (!this.game || !this.initialPartition.length) return { x: 0, y: 0 };
+        
+        const maxWidth = Math.max(...this.initialPartition);
+        const maxHeight = this.initialPartition.length;
+        
+        // Calculate dimensions including gaps
+        const boardDataWidth = maxWidth * this.CELL + (maxWidth - 1) * this.GAP;
+        const boardDataHeight = maxHeight * this.CELL + (maxHeight - 1) * this.GAP;
+        const minDimension = 480;
+        let boardWidth = Math.max(this.MARGIN * 2 + boardDataWidth, minDimension);
+        let boardHeight = Math.max(this.MARGIN * 2 + boardDataHeight, minDimension);
+        
+        // Calculate centering offset - only center horizontally
+        return {
+            x: (boardWidth - boardDataWidth) / 2,
+            y: this.MARGIN  // Keep original top margin
+        };
+    }
+
     redrawBoard() {
         this.boardArea.querySelectorAll('.tile').forEach(tile => tile.remove());
         if (!this.game) return;
         
-        const extraLeftMargin = this.game.board.width() > 30 ? 20 : 0;
         const maxWidth = Math.max(...this.initialPartition);
         const maxHeight = this.initialPartition.length;
+        
+        // Calculate dimensions including gaps
+        const boardDataWidth = maxWidth * this.CELL + (maxWidth - 1) * this.GAP;
+        const boardDataHeight = maxHeight * this.CELL + (maxHeight - 1) * this.GAP;
+        const minDimension = 480;
+        let boardWidth = Math.max(this.MARGIN * 2 + boardDataWidth, minDimension);
+        let boardHeight = Math.max(this.MARGIN * 2 + boardDataHeight, minDimension);
+        
+        // Calculate centering offset
+        const centerOffset = this.getBoardCenterOffset();
         
         // Draw all cells (present and removed) without labels
         for (let r = 0; r < maxHeight; r++) {
@@ -679,30 +751,22 @@ class ProCornerGui {
                 tile.id = `tile-${r}-${c}`;
                 tile.style.width = `${this.CELL}px`;
                 tile.style.height = `${this.CELL}px`;
-                tile.style.left = `${this.MARGIN + extraLeftMargin + c * this.CELL}px`;
-                tile.style.top = `${this.MARGIN + r * this.CELL}px`;
+                tile.style.left = `${centerOffset.x + c * (this.CELL + this.GAP)}px`;
+                tile.style.top = `${centerOffset.y + r * (this.CELL + this.GAP)}px`;
                 this.boardArea.appendChild(tile);
             }
         }
         
         // Set board dimensions
-        const boardDataWidth = maxWidth * this.CELL;
-        const boardDataHeight = maxHeight * this.CELL;
-        let boardWidth = this.MARGIN * 2 + boardDataWidth + extraLeftMargin;
-        let boardHeight = this.MARGIN * 2 + boardDataHeight;
-        
-        const minDimension = 480;
-        boardWidth = Math.max(boardWidth, minDimension);
-        boardHeight = Math.max(boardHeight, minDimension);
-        
         this.boardArea.style.width = `${boardWidth}px`;
         this.boardArea.style.height = `${boardHeight}px`;
     }
 
     updateStatus() {
         if (!this.game) return;
-        const kind = this.game.isAiTurn() ? "Computer" : "Human";
-        const newText = `Player ${this.game.currentPlayer} (${kind}) to move`;
+        const kind = this.game.isAiTurn() ? "computer" : "human";
+        const player = this.game.currentPlayer.toLowerCase() === 'a' ? 'alice' : 'bob';
+        const newText = `${player} (${kind}) to move`;
         if (this.statusLabel.textContent === newText) return;
         this.statusLabel.classList.add('exiting');
         setTimeout(() => {
@@ -722,9 +786,9 @@ class ProCornerGui {
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
             
-            const extraLeftMargin = this.game.board.width() > 30 ? 20 : 0;
-            const col = Math.floor((x - this.MARGIN - extraLeftMargin) / this.CELL);
-            const row = Math.floor((y - this.MARGIN) / this.CELL);
+            const centerOffset = this.getBoardCenterOffset();
+            const col = Math.floor((x - centerOffset.x) / (this.CELL + this.GAP));
+            const row = Math.floor((y - centerOffset.y) / (this.CELL + this.GAP));
             
             this.handleTileClick(row, col);
         } else {
@@ -839,33 +903,26 @@ class ProCornerGui {
     showHelp() { this.helpPopover.classList.add('visible'); }
     hideHelp() { this.helpPopover.classList.remove('visible'); }
     initTheme() { 
-        const savedTheme = localStorage.getItem('theme') || 'light'; 
-        document.documentElement.setAttribute('data-theme', savedTheme); 
-        if (this.themeToggle) {
-            this.themeToggle.checked = savedTheme === 'dark';
-        }
-    }
-    toggleTheme() { 
-        const newTheme = this.themeToggle.checked ? 'dark' : 'light'; 
-        document.documentElement.setAttribute('data-theme', newTheme); 
-        localStorage.setItem('theme', newTheme); 
+        // Theme initialization is handled by global script.js
     }
     showSetupModal() { 
         if (this.gameOverModal) {
             this.gameOverModal.classList.remove('visible');
         }
         if (this.setupModal) {
-            this.setupModal.classList.add('visible'); 
+            this.setupModal.classList.add('visible');
+            this.setupModal.style.opacity = '1';
+            this.setupModal.style.visibility = 'visible';
         }
     }
     updateDifficultyLabel() {
         const value = parseInt(this.difficultySlider.value);
         let difficulty;
         switch(value) {
-            case 1: difficulty = 'Easy'; break;
-            case 2: difficulty = 'Medium'; break;
-            case 3: difficulty = 'Hard'; break;
-            default: difficulty = 'Medium'; break;
+            case 1: difficulty = 'easy'; break;
+            case 2: difficulty = 'medium'; break;
+            case 3: difficulty = 'hard'; break;
+            default: difficulty = 'medium'; break;
         }
         this.difficultyLabel.textContent = difficulty;
     }
