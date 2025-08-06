@@ -1048,7 +1048,7 @@ class GameUI {
         try {
             if (window.DatabaseUtils) {
                 await window.DatabaseUtils.storeGameInDatabase(
-                    'CKING',
+                    'SCC',
                     this.game.board.rows,
                     this.movesSequence,
                     winner && winner.charAt(0),
