@@ -179,9 +179,11 @@ class GameState{
         let x=originalX;  
         newFrags.forEach(nf=>{nf.x=x;nf.y=originalY;x+=nf.cols*CELL_SIZE+GAP_SIZE*2;});  
       }  
-    }else if(newFrags.length===1){newFrags[0].x=originalX;newFrags[0].y=originalY;}  
-  
-    this.fragments.splice(fIdx,1,...newFrags);  
+      this.fragments.splice(fIdx,1,...newFrags);  
+    }else if(newFrags.length===1){
+      newFrags[0].x=originalX;newFrags[0].y=originalY;
+      this.fragments.splice(fIdx,1,newFrags[0]);
+    }
     this.player=Player.other(this.player);  
   }  
 }  
@@ -196,65 +198,135 @@ class CRPS_GUI{
     // Database tracking
     this.movesSequence = [];
     this.gameStartTime = null;  
-    /* DOM handles */  
-    this.boardArea=document.getElementById('board-area');  
-    this.statusLabel=document.getElementById('status-label');  
-    this.setupBackdrop=document.getElementById('setup-modal-backdrop');  
-    this.gameOverBackdrop=document.getElementById('game-over-modal-backdrop');  
-    this.gameOverMsg=document.getElementById('game-over-message');  
-    this.rowsInput=document.getElementById('rows-input');  
-    this.helpPopover=document.getElementById('help-popover');  
-    this.aiIndicator=document.getElementById('ai-thinking-indicator');  
-    this.undoBtn=document.getElementById('undo-btn');  
-    this.state=null;this.idCounter=0;this.idToAddress=new Map();  
-    this.bindEventListeners();this.showSetupModal();this.setupTheme();  
+    
+    // Initialize DOM handles with error handling
+    try {
+      this.boardArea=document.getElementById('board-area');  
+      this.statusLabel=document.getElementById('status-label');  
+      this.setupBackdrop=document.getElementById('setup-modal-backdrop');  
+      this.gameOverBackdrop=document.getElementById('game-over-modal-backdrop');  
+      this.gameOverMsg=document.getElementById('game-over-message');  
+      this.rowsInput=document.getElementById('rows-input');  
+      this.helpPopover=document.getElementById('help-popover');  
+      this.aiIndicator=document.getElementById('ai-thinking-indicator');  
+      this.undoBtn=document.getElementById('undo-btn');  
+      
+      this.state=null;this.idCounter=0;this.idToAddress=new Map();  
+      this.bindEventListeners();this.showSetupModal();this.setupTheme();  
+    } catch (error) {
+      console.error('Error initializing CRPS GUI:', error);
+      // Set a fallback status message
+      const statusLabel = document.getElementById('status-label');
+      if (statusLabel) {
+        statusLabel.textContent = 'Error loading game. Please refresh the page.';
+      }
+    }
   }  
   
   bindEventListeners(){  
-    document.getElementById('new-game-btn').addEventListener('click',()=>{SoundManager.play('click');this.showSetupModal();});  
-    document.getElementById('start-game-btn').addEventListener('click',()=>{SoundManager.play('click');this.startFromInput();});  
-    document.getElementById('play-again-btn').addEventListener('click',()=>{SoundManager.play('click');this.showSetupModal();});  
-    document.getElementById('generate-partition-btn').addEventListener('click',()=>{SoundManager.play('click');this.generatePartition();});  
-    document.getElementById('theme-select').addEventListener('change',()=>this.applyTileTheme());  
-    this.undoBtn?.addEventListener('click',()=>this.undoMove());  
-    
-    // Download button
-    const downloadBtn = document.getElementById('download-btn');
-    if (downloadBtn) {
-      downloadBtn.addEventListener('click', () => {
-        SoundManager.play('click');
-        this.downloadGame();
-      });
+    try {
+      const newGameBtn = document.getElementById('new-game-btn');
+      if (newGameBtn) {
+        newGameBtn.addEventListener('click',()=>{SoundManager.play('click');this.showSetupModal();});
+      }
+      
+      const startGameBtn = document.getElementById('start-game-btn');
+      if (startGameBtn) {
+        startGameBtn.addEventListener('click',()=>{SoundManager.play('click');this.startFromInput();});
+      }
+      
+      const playAgainBtn = document.getElementById('play-again-btn');
+      if (playAgainBtn) {
+        playAgainBtn.addEventListener('click',()=>{SoundManager.play('click');this.showSetupModal();});
+      }
+      
+      const generatePartitionBtn = document.getElementById('generate-partition-btn');
+      if (generatePartitionBtn) {
+        generatePartitionBtn.addEventListener('click',()=>{SoundManager.play('click');this.generatePartition();});
+      }
+      
+      // Handle theme-select if it exists (it doesn't in CRPS)
+      const themeSelect = document.getElementById('theme-select');
+      if (themeSelect) {
+        themeSelect.addEventListener('change',()=>this.applyTileTheme());
+      }
+      
+      this.undoBtn?.addEventListener('click',()=>this.undoMove());  
+      
+      // Download button
+      const downloadBtn = document.getElementById('download-btn');
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+          SoundManager.play('click');
+          this.downloadGame();
+        });
+      }
+      
+      const helpBtn=document.getElementById('help-btn'),helpBtnModal=document.getElementById('help-btn-modal');  
+      [helpBtn,helpBtnModal].forEach(btn=>btn?.addEventListener('click',e=>{  
+        SoundManager.play('click');e.stopPropagation();this.toggleHelp();  
+      }));  
+      document.addEventListener('click',e=>{  
+        const helpPopover=document.getElementById('help-popover'),helpBtn=document.getElementById('help-btn'),helpBtnModal=document.getElementById('help-btn-modal');  
+        if(!helpBtn||!helpBtn.contains(e.target))  
+          if(!helpBtnModal||!helpBtnModal.contains(e.target))  
+            if(!helpPopover||!helpPopover.contains(e.target))this.hideHelp();  
+      });  
+      
+      const themeToggle=document.getElementById('theme-toggle');  
+      if(themeToggle)themeToggle.addEventListener('change',()=>this.toggleTheme());  
+      
+      if (this.statusLabel) {
+        this.statusLabel.textContent='Click "New Game" to start';  
+      }
+    } catch (error) {
+      console.error('Error binding event listeners:', error);
     }
-    
-    const helpBtn=document.getElementById('help-btn'),helpBtnModal=document.getElementById('help-btn-modal');  
-    [helpBtn,helpBtnModal].forEach(btn=>btn?.addEventListener('click',e=>{  
-      SoundManager.play('click');e.stopPropagation();this.toggleHelp();  
-    }));  
-    document.addEventListener('click',e=>{  
-      const helpPopover=document.getElementById('help-popover'),helpBtn=document.getElementById('help-btn'),helpBtnModal=document.getElementById('help-btn-modal');  
-      if(!helpBtn||!helpBtn.contains(e.target))  
-        if(!helpBtnModal||!helpBtnModal.contains(e.target))  
-          if(!helpPopover||!helpPopover.contains(e.target))this.hideHelp();  
-    });  
-    
-    const themeToggle=document.getElementById('theme-toggle');  
-    if(themeToggle)themeToggle.addEventListener('change',()=>this.toggleTheme());  
-    
-    this.statusLabel.textContent='Click "New Game" to start';  
   }  
   
-  showSetupModal(){this.setupBackdrop.classList.add('visible');this.clearBoard();this.updateUndoButton();}  
-  hideSetupModal(){this.setupBackdrop.classList.remove('visible');}  
-  showGameOverModal(){this.gameOverBackdrop.classList.add('visible');}  
-  hideGameOverModal(){this.gameOverBackdrop.classList.remove('visible');}  
+  showSetupModal(){
+    if (this.setupBackdrop) {
+      // Hide game over modal first if it's visible
+      if (this.gameOverBackdrop) {
+        this.gameOverBackdrop.classList.remove('visible');
+      }
+      this.setupBackdrop.classList.add('visible');
+      this.clearBoard();
+      this.updateUndoButton();
+    }
+  }
+  hideSetupModal(){
+    if (this.setupBackdrop) {
+      this.setupBackdrop.classList.remove('visible');
+    }
+  }
+  showGameOverModal(){
+    if (this.gameOverBackdrop) {
+      this.gameOverBackdrop.classList.add('visible');
+    }
+  }
+  hideGameOverModal(){
+    if (this.gameOverBackdrop) {
+      this.gameOverBackdrop.classList.remove('visible');
+    }
+  }
   
   toggleHelp(){  
-    if(this.helpPopover.classList.contains('visible'))this.hideHelp();  
-    else this.showHelp();  
+    if (this.helpPopover) {
+      if(this.helpPopover.classList.contains('visible'))this.hideHelp();  
+      else this.showHelp();  
+    }
   }  
-  showHelp(){this.helpPopover.classList.add('visible');}  
-  hideHelp(){this.helpPopover.classList.remove('visible');}  
+  showHelp(){
+    if (this.helpPopover) {
+      this.helpPopover.classList.add('visible');
+    }
+  }
+  hideHelp(){
+    if (this.helpPopover) {
+      this.helpPopover.classList.remove('visible');
+    }
+  }
   
   setupTheme(){  
     const saved=localStorage.getItem('crps-theme');  
@@ -298,7 +370,12 @@ class CRPS_GUI{
     this.statusLabel.textContent = `Player ${playerLetter} (${playerType}) - ${moveType} only`;
   }
   
-  clearBoard(){this.boardArea.innerHTML='';this.idToAddress.clear();}  
+  clearBoard(){
+    if (this.boardArea) {
+      this.boardArea.innerHTML='';
+      this.idToAddress.clear();
+    }
+  }
   
   generatePartition(){  
     const sel=document.getElementById('partition-type-select');  
@@ -349,10 +426,10 @@ class CRPS_GUI{
   }  
   canUndo(){return this.state&&this.gameHistory.length>0&&!(this.vsCPU&&this.state.player===this.cpuSide);}  
   updateUndoButton(){  
-    if(!this.undoBtn)return;  
-    const can=this.canUndo();  
-    if(this.state){this.undoBtn.style.display='flex';this.undoBtn.disabled=!can;}  
-    else{this.undoBtn.style.display='none';}  
+    if (this.undoBtn) {
+      if(this.canUndo()){this.undoBtn.style.display='inline-block';}  
+      else{this.undoBtn.style.display='none';}
+    }
   }  
   clearGameHistory(){this.gameHistory=[];this.updateUndoButton();}  
   applyTileTheme(){  
@@ -363,7 +440,25 @@ class CRPS_GUI{
   redraw(){  
     this.clearBoard();if(!this.state)return;  
     this.updateBoardDimensions();  
-    this.state.fragments.forEach((f,i)=>this.drawFragment(f,i,f.x+this.GAP,f.y+this.GAP));  
+    
+    // Calculate horizontal center offset for the entire board
+    const boardAreaWidth = this.boardArea.offsetWidth;
+    
+    // Calculate the total content width
+    let maxX = 0;
+    this.state.fragments.forEach(f => {
+      maxX = Math.max(maxX, f.x + f.cols * this.CELL);
+    });
+    
+    const totalWidth = maxX + this.GAP * 2 + this.LABEL;
+    const centerOffset = (boardAreaWidth - totalWidth) / 2;
+    
+    // Draw fragments with horizontal centering but using their original y positions
+    this.state.fragments.forEach((f, i) => {
+      const x0 = f.x + this.GAP + centerOffset;
+      const y0 = f.y + this.GAP;
+      this.drawFragment(f, i, x0, y0);
+    });
   }  
   updateBoardDimensions(){  
     if(!this.state||!this.state.fragments.length)return;  
