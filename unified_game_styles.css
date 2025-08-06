@@ -394,6 +394,15 @@ footer {
     to { opacity: 1; transform: scale(1) translateY(0); } 
 }
 
+@keyframes anticorner-glow {
+    from {
+        box-shadow: 0 0 8px rgba(255, 107, 107, 0.6);
+    }
+    to {
+        box-shadow: 0 0 12px rgba(255, 107, 107, 0.9);
+    }
+}
+
 /* ==========================================================================
    8. Layout & Game-Specific Containers
    ========================================================================== */
@@ -539,13 +548,26 @@ footer {
 .tile.anticorner {
     background: var(--anticorner-bg) !important;
     border-color: var(--anticorner-border) !important;
+    border-right-color: var(--anticorner-border) !important;
+    border-bottom-color: var(--anticorner-border) !important;
     pointer-events: auto;
     cursor: pointer;
+    box-shadow: 0 0 8px rgba(255, 106, 0, 0.885);
+    animation: anticorner-glow 2s ease-in-out infinite alternate;
 }
 
 .tile.anticorner:hover {
     transform: scale(1.05);
-    box-shadow: inset 0 0 0 3px var(--orange);
+    box-shadow: 0 0 12px rgba(255, 128, 9, 0.88), inset 0 0 0 3px var(--orange);
+}
+
+/* Tile that will be removed (preview) */
+.tile.will-remove {
+    background: rgba(255, 107, 107, 0.3) !important;
+    border-color: rgba(224, 49, 49, 0.5) !important;
+    border-right-color: rgba(224, 49, 49, 0.5) !important;
+    border-bottom-color: rgba(224, 49, 49, 0.5) !important;
+    opacity: 0.7;
 }
 
 /* Label cells for CRIM, CRPM, CRIS, Sato-Welter games */
