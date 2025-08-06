@@ -46,6 +46,14 @@ function canPlayerMakeMove(player, moveType) {
     return moveType === 'col'; // Player B can only make column moves
   }
 }
+
+// Sanity checks (optional but helpful)
+function assertUniqueIds(fragments) {  
+  const ids = new Set(fragments.map(f => f.partitionId));  
+  if (ids.size !== fragments.length) {  
+    throw new Error('Duplicate partitionId detected – invariant broken!');  
+  }  
+}
   
 /* ───────── Grundy numbers for rectangles ───────── */  
 const gMemo=new Map();                     // key: "h,w"  
@@ -171,49 +179,39 @@ class GameState{
       return;
     }
     
-    const frag=this.fragments[fIdx],originalX=frag.x,originalY=frag.y;  
-    if(kind==='row')frag.deleteRow(lineIdx);else frag.deleteCol(lineIdx);  
-    const newFrags=frag.splitIntoFragments();  
+    const parent = this.fragments[fIdx];
+    const originalX=parent.x,originalY=parent.y;  
+    if(kind==='row')parent.deleteRow(lineIdx);else parent.deleteCol(lineIdx);  
+    const children = parent.splitIntoFragments();  
   
-    // give each newborn fragment its own id  
-    if(newFrags.length){  
-      newFrags.forEach(nf=>{  
-        nf.partitionId = this.nextPartitionId++;  
-      });  
-    }  
+    // 1. Hand out permanent ids  
+    children.forEach(ch => {  
+      ch.partitionId = this.nextPartitionId++;  
+    });  
   
-    if(newFrags.length>1){  
+    // 2. Replace parent in fragment array  
+    this.fragments.splice(fIdx, 1, ...children);  
+  
+    // 3. Keep the array ordered (OPTIONAL, purely cosmetic)  
+    this.fragments.sort((a, b) => a.partitionId - b.partitionId);  
+  
+    // Position the children
+    if(children.length>1){  
       if(kind==='row'){  
         let y=originalY;  
-        newFrags.forEach(nf=>{nf.x=originalX;nf.y=y;y+=nf.rows*CELL_SIZE+GAP_SIZE*2;});  
+        children.forEach(nf=>{nf.x=originalX;nf.y=y;y+=nf.rows*CELL_SIZE+GAP_SIZE*2;});  
       }else{  
         let x=originalX;  
-        newFrags.forEach(nf=>{nf.x=x;nf.y=originalY;x+=nf.cols*CELL_SIZE+GAP_SIZE*2;});  
+        children.forEach(nf=>{nf.x=x;nf.y=originalY;x+=nf.cols*CELL_SIZE+GAP_SIZE*2;});  
       }  
-      this.fragments.splice(fIdx,1,...newFrags);  
-    }else if(newFrags.length===1){
-      newFrags[0].x=originalX;newFrags[0].y=originalY;
-      this.fragments.splice(fIdx,1,newFrags[0]);
+    }else if(children.length===1){
+      children[0].x=originalX;children[0].y=originalY;
     }
     
-    // Renumber fragments by seniority (creation order)
-    this.renumberFragmentsBySeniority();
+    // Sanity check (optional but helpful)
+    assertUniqueIds(this.fragments);
     
     this.player=Player.other(this.player);
-  }
-  
-  // Renumber fragments by seniority (creation order)
-  renumberFragmentsBySeniority() {
-    // Sort fragments by their original partitionId (creation order)
-    this.fragments.sort((a, b) => a.partitionId - b.partitionId);
-    
-    // Renumber them sequentially starting from 1
-    this.fragments.forEach((frag, index) => {
-      frag.partitionId = index + 1;
-    });
-    
-    // Update nextPartitionId to be one more than the highest current ID
-    this.nextPartitionId = this.fragments.length + 1;
   }
 }  
   
