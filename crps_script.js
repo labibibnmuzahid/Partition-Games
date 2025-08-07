@@ -106,7 +106,7 @@ class Fragment{
       }
     }
     return rowLengths.sort((a, b) => b - a); // Sort in descending order
-  }
+  }  
 }  
   
 class GameState{  
@@ -115,7 +115,7 @@ class GameState{
     this.fragmentNames=['A'];
     this.nextNameIndex=1; // next is 'B'
     this.player=Player.RED;
-  }
+  }  
   _indexToLetters(n){
     let s='';n = Math.floor(n);
     while(n>=0){s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)-1;}
@@ -153,7 +153,7 @@ class GameState{
         newNames.push(this._indexToLetters(this.nextNameIndex++));
       }
     }
-
+  
     this.fragments.splice(fIdx,1,...newFrags);  
     this.fragmentNames.splice(fIdx,1,...newNames);
     this.player=Player.other(this.player);  
@@ -253,6 +253,8 @@ class CRPS_GUI{
       this.vsCPU=(this.cpuSide!=='None');  
       // difficulty slider currently unused  
       this.state=new GameState(nums);  
+      // Keep the initial partition for database storage
+      this.initialPartitionRows = [...nums];
       
       // Center the initial board
       if (this.state.fragments.length > 0) {
@@ -554,7 +556,7 @@ class CRPS_GUI{
       if (window.DatabaseUtils) {
         const payload = {
           gameTypeKey: 'CRPS',
-          initialPartition: this.state.fragments[0] ? this.state.fragments[0].getRows() : [],
+          initialPartition: this.initialPartitionRows || [],
           movesSequence: this.movesSequence,
           winner: winner && winner.charAt(0),
           gameStartTime: this.gameStartTime,

@@ -260,6 +260,8 @@ class CRIM_GUI{
       this.vsCPU=(this.cpuSide!=='None');  
       // difficulty slider currently unused  
       this.state=new GameState(nums);  
+      // Keep the initial partition for database storage
+      this.initialPartitionRows = [...nums];
       
       // Center the initial board
       if (this.state.fragments.length > 0) {
@@ -525,7 +527,7 @@ class CRIM_GUI{
       if (window.DatabaseUtils) {
         const payload = {
           gameTypeKey: 'CRIS',
-          initialPartition: this.state.fragments[0] ? this.state.fragments[0].getRows() : [],
+          initialPartition: this.initialPartitionRows || [],
           movesSequence: this.movesSequence,
           winner: winner && winner.charAt(0),
           gameStartTime: this.gameStartTime,
