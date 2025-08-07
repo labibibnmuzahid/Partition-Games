@@ -27,7 +27,8 @@ const GAME_TYPE_CODES = {
  * @param {string} winner - Winner ('A' or 'B')
  * @param {Date} gameStartTime - When the game started
  */
-async function storeGameInDatabase(gameTypeKey, initialPartition, movesSequence, winner, gameStartTime = new Date()) {
+// NOTE: Extra trailing args are accepted for forward compatibility (e.g., moveContexts)
+async function storeGameInDatabase(gameTypeKey, initialPartition, movesSequence, winner, gameStartTime = new Date(), moveContexts = null) {
     try {
         // Prepare game data in the required format
         const gameData = {
@@ -35,7 +36,8 @@ async function storeGameInDatabase(gameTypeKey, initialPartition, movesSequence,
             partitionData: Array.isArray(initialPartition) ? initialPartition.join(' ') : initialPartition,
             timestampPlayed: gameStartTime.toISOString(),
             movesSequence: Array.isArray(movesSequence) ? movesSequence.join(' ') : movesSequence,
-            gameOutcome: winner
+            gameOutcome: winner,
+            moveContexts: moveContexts || undefined
         };
 
         // Get server URL from global config

@@ -134,7 +134,17 @@ class Fragment{
 }  
   
 class GameState{  
-  constructor(rowSizes){this.fragments=[Fragment.fromRowSizes(rowSizes)];this.player=Player.RED;}  
+  constructor(rowSizes){
+    this.fragments=[Fragment.fromRowSizes(rowSizes)];
+    this.fragmentNames=['A'];
+    this.nextNameIndex=1; // next is 'B'
+    this.player=Player.RED;
+  }
+  _indexToLetters(n){
+    let s='';n = Math.floor(n);
+    while(n>=0){s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)-1;}
+    return s;
+  }
   hasMoves(){return this.fragments.some(f=>f.hasMoves());}  
   performMove(fIdx,kind,lineIdx){  
     const frag=this.fragments[fIdx],originalX=frag.x,originalY=frag.y;  
@@ -150,8 +160,20 @@ class GameState{
         newFrags.forEach(nf=>{nf.x=x;nf.y=originalY;x+=nf.cols*40+60;});  
       }  
     }else if(newFrags.length===1){newFrags[0].x=originalX;newFrags[0].y=originalY;}  
-  
+
+    // Update fragment names alongside fragments
+    let newNames=[];
+    if(newFrags.length===1){
+      newNames=[this.fragmentNames[fIdx]];
+    }else{
+      newNames=[this.fragmentNames[fIdx]];
+      for(let i=1;i<newFrags.length;i++){
+        newNames.push(this._indexToLetters(this.nextNameIndex++));
+      }
+    }
+
     this.fragments.splice(fIdx,1,...newFrags);  
+    this.fragmentNames.splice(fIdx,1,...newNames);
     this.player=Player.other(this.player);  
   }  
 }  
@@ -165,6 +187,7 @@ class CRIM_GUI{
     this.gameHistory=[];
     // Database tracking
     this.movesSequence = [];
+    this.moveContexts = [];
     this.gameStartTime = null;  
     /* DOM handles */  
     this.boardArea=document.getElementById('board-area');  
@@ -269,6 +292,7 @@ class CRIM_GUI{
       this.clearGameHistory();this.redraw();
       // Initialize database tracking
       this.movesSequence = [];
+      this.moveContexts = [];
       this.gameStartTime = new Date();
       this.updateUndoButton();
       this.updateDownloadButton();
@@ -305,7 +329,8 @@ class CRIM_GUI{
     const fragmentsCopy=this.state.fragments.map(f=>{  
       const g=f.grid.map(row=>[...row]);return new Fragment(g,f.x,f.y);  
     });  
-    this.gameHistory.push({fragments:fragmentsCopy,player:this.state.player});  
+    // include fragment names in history for undo fidelity
+    this.gameHistory.push({fragments:fragmentsCopy,player:this.state.player,fragmentNames:[...this.state.fragmentNames],nextNameIndex:this.state.nextNameIndex});  
     this.updateDownloadButton();
   }  
   undoMove(){  
@@ -313,8 +338,10 @@ class CRIM_GUI{
     SoundManager.play('click');  
     const prev=this.gameHistory.pop();  
     this.state.fragments=prev.fragments;this.state.player=prev.player;
+    this.state.fragmentNames=prev.fragmentNames;this.state.nextNameIndex=prev.nextNameIndex;
     // Remove the last move from the sequence
     this.movesSequence.pop();
+    this.moveContexts.pop();
     this.redraw();  
     this.updateUndoButton();
     this.updateDownloadButton();
@@ -443,8 +470,17 @@ class CRIM_GUI{
     SoundManager.play('click');  
     ev.currentTarget.classList.add(info.kind==='row'?'row-win':'col-win');  
     setTimeout(()=>{  
-      // Track the move
-      this.movesSequence.push(info.kind === 'row' ? `R${info.index}` : `C${info.index}`);
+      // Track the move and context
+      const fragName = this.state.fragmentNames[info.frag] || '?';
+      const frag = this.state.fragments[info.frag];
+      const fragRows = frag ? frag.getRows() : [];
+      const moveStr = info.kind === 'row' ? `R${info.index}` : `C${info.index}`;
+      this.movesSequence.push(moveStr);
+      this.moveContexts.push({
+        fragmentName: fragName,
+        fragmentRows: fragRows,
+        move: moveStr
+      });
       
       this.state.performMove(info.frag,info.kind,info.index);  
       if(!this.state.hasMoves()){  
@@ -487,12 +523,21 @@ class CRIM_GUI{
   async storeGameInDatabase(winner) {
     try {
       if (window.DatabaseUtils) {
+        const payload = {
+          gameTypeKey: 'CRIS',
+          initialPartition: this.state.fragments[0] ? this.state.fragments[0].getRows() : [],
+          movesSequence: this.movesSequence,
+          winner: winner && winner.charAt(0),
+          gameStartTime: this.gameStartTime,
+          moveContexts: this.moveContexts
+        };
         await window.DatabaseUtils.storeGameInDatabase(
-          'CRIS',
-          this.state.fragments[0] ? this.state.fragments[0].getRows() : [],
-          this.movesSequence,
-          winner && winner.charAt(0),
-          this.gameStartTime
+          payload.gameTypeKey,
+          payload.initialPartition,
+          payload.movesSequence,
+          payload.winner,
+          payload.gameStartTime,
+          payload.moveContexts
         );
       }
     } catch (err) {
