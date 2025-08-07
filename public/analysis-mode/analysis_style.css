@@ -1,4 +1,4 @@
-/* corner_analysis.css */
+/* analysis_style.css (shared by Corner & LCTR analysis) */
 
 /* --- Analysis Panel & Undo Button --- */
 #analysis-container {
@@ -115,7 +115,6 @@
 }
 
 #g-number-chart {
-    /* border: 1px solid currentColor; */
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
     display: block;
@@ -187,7 +186,6 @@
 }
 
 .analysis-toggle-btn.active {
-    content: '☝️&#x1F913';
     background: var(--accent-color);
     color: var(--bg-primary);
     border-color: var(--accent-color);
@@ -201,3 +199,4 @@
     background: var(--accent-hover);
     border-color: var(--accent-hover);
 }
+

@@ -211,61 +211,112 @@ function calculateOptimalMoves(board) {
 }
 
 
-// --- Main DOM Interaction Logic ---
-document.addEventListener('DOMContentLoaded', () => {
-    const generateBtn = document.getElementById('generate-report-btn');
-    const inputArea = document.getElementById('game-states-input');
-    const reportContainer = document.getElementById('report-container');
-
-    function loadAndRunReport() {
-        const gameStates = localStorage.getItem('cornerGameStatesForReport');
-        if (gameStates) {
-            inputArea.value = gameStates;
-            localStorage.removeItem('cornerGameStatesForReport'); 
-            generateBtn.click();
+// --- Public API (for unified report) ---
+// Misere support for report (value 1=win, 0=loss)
+const reportMisereMemo = new Map();
+function reportMisereGrundy(position) {
+    if (position === '[]') return 1;
+    if (reportMisereMemo.has(position)) return reportMisereMemo.get(position);
+    const board = new Board(JSON.parse(position));
+    if (board.getSelectableLastPieces().length === 0) {
+        reportMisereMemo.set(position, 1);
+        return 1;
+    }
+    for (const move of allCornerMoves(board)) {
+        const child = new Board([...board.rows]);
+        child.makeCornerMoveWithSelection(move);
+        if (reportMisereGrundy(child.asTuple()) === 0) {
+            reportMisereMemo.set(position, 1);
+            return 1;
         }
     }
+    reportMisereMemo.set(position, 0);
+    return 0;
+}
 
-    /**
-     * Parses a raw string from a textarea into an array of game state strings.
-     * @param {string} rawInput - The string from the textarea.
-     * @returns {string[]} An array of game state strings.
-     */
-    function parseInput(rawInput) {
+window.CornerReport = {
+    parseInput(rawInput) {
         return rawInput.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    }
-
-    generateBtn.addEventListener('click', () => {
-        // Clear previous results and caches
-        reportContainer.innerHTML = '';
+    },
+    performAnalysis,
+    createReportCard,
+    createErrorCard,
+    render(container, inputText, mode = 'normal') {
+        container.innerHTML = '';
         grundyMemo.clear();
         uptimalityMemo.clear();
         gameDepthMemo.clear();
-
-        const gameStates = parseInput(inputArea.value);
-        if (gameStates.length === 0) {
-            reportContainer.innerHTML = '<p>Please enter at least one valid game state.</p>';
+        reportMisereMemo.clear();
+        const states = this.parseInput(inputText);
+        if (states.length === 0) {
+            container.innerHTML = '<p>Please enter at least one valid game state.</p>';
             return;
         }
-
-        gameStates.forEach(stateStr => {
+        states.forEach(stateStr => {
             try {
                 const partition = stateStr.split(/\s+/).map(Number);
                 if (partition.some(isNaN)) throw new Error(`Invalid characters in state: "${stateStr}"`);
-                
-                const analysis = performAnalysis(partition);
+                let analysis;
+                if (mode === 'misere') {
+                    const board = new Board(partition);
+                    const positionTuple = board.asTuple();
+                    const val = reportMisereGrundy(positionTuple);
+                    const selectableCount = board.getSelectableLastPieces().length;
+                    analysis = {
+                        isMisere: true,
+                        valueLabel: 'Misere Value',
+                        gValue: val,
+                        pnStatus: val === 1 ? 'N-Position' : 'P-Position',
+                        reachableMoves: (selectableCount > 0 ? (BigInt(1) << BigInt(selectableCount)) - BigInt(1) : 0n).toString(),
+                        optimalMoves: (() => {
+                            const optimalMoves = [];
+                            for (const move of allCornerMoves(board)) {
+                                const childBoard = new Board([...board.rows]);
+                                childBoard.makeCornerMoveWithSelection(move);
+                                if (reportMisereGrundy(childBoard.asTuple()) === 0) {
+                                    const moveString = move.map(p => `R${p.row}C${p.col}`).join(', ');
+                                    optimalMoves.push(`[${moveString}]`);
+                                }
+                            }
+                            return optimalMoves.join(' / ') || 'No winning moves found.';
+                        })()
+                    };
+                } else {
+                    analysis = { valueLabel: 'Grundy Value (g)', ...performAnalysis(partition) };
+                }
                 const reportCard = createReportCard(stateStr, analysis);
-                reportContainer.appendChild(reportCard);
-
+                container.appendChild(reportCard);
             } catch (error) {
                 const errorCard = createErrorCard(stateStr, error.message);
-                reportContainer.appendChild(errorCard);
+                container.appendChild(errorCard);
             }
         });
-    });
+    }
+};
 
-    loadAndRunReport();
-});
+// --- Standalone page wiring (corner_report.html) ---
+if (!window.UNIFIED_REPORT) {
+    document.addEventListener('DOMContentLoaded', () => {
+        const generateBtn = document.getElementById('generate-report-btn');
+        const inputArea = document.getElementById('game-states-input');
+        const reportContainer = document.getElementById('report-container');
+
+        function loadAndRunReport() {
+            const gameStates = localStorage.getItem('cornerGameStatesForReport');
+            if (gameStates) {
+                inputArea.value = gameStates;
+                localStorage.removeItem('cornerGameStatesForReport');
+                generateBtn.click();
+            }
+        }
+
+        generateBtn.addEventListener('click', () => {
+            window.CornerReport.render(reportContainer, inputArea.value, 'normal');
+        });
+
+        loadAndRunReport();
+    });
+}
 
 /**
  * Performs all analysis for a given partition.
@@ -302,22 +353,36 @@ function createReportCard(stateStr, analysis) {
     
     const pnClass = analysis.pnStatus === 'N-Position' ? 'n-position' : 'p-position';
 
-    card.innerHTML = `
+    const valueLabel = analysis.valueLabel || 'Grundy Value (g)';
+    let content = `
         <div class="report-header">
             <h3>[${stateStr}]</h3>
             <span class="p-n-status ${pnClass}">${analysis.pnStatus}</span>
         </div>
-        <p><span class="label">Grundy Value (g):</span> <span class="value">${analysis.gValue}</span></p>
-        <p><span class="label">Uptimality:</span> <span class="value">${analysis.uptimality}</span></p>
-        <p><span class="label">Max Game Depth:</span> <span class="value">${analysis.gameDepth}</span></p>
-        <p><span class="label">Reachable Moves:</span> <span class="value">${analysis.reachableMoves}</span></p>
-        <p><span class="label">Reversible Moves:</span> <span class="value">${analysis.reversibleMoves}</span></p>
-        
-        <div class="optimal-moves-container">
-            <span class="label">Optimal Moves (to g=0):</span>
-            <div class="optimal-moves-list">${analysis.optimalMoves}</div>
-        </div>
+        <p><span class="label">${valueLabel}:</span> <span class="value">${analysis.gValue}</span></p>
     `;
+
+    const addRow = (label, value) => {
+        if (value !== undefined && value !== 'N/A') {
+            content += `<p><span class=\"label\">${label}:</span> <span class=\"value\">${value}</span></p>`;
+        }
+    };
+
+    addRow('Uptimality', analysis.uptimality);
+    addRow('Max Game Depth', analysis.gameDepth);
+    addRow('Reachable Moves', analysis.reachableMoves);
+    addRow('Reversible Moves', analysis.reversibleMoves);
+
+    if (analysis.optimalMoves !== undefined && analysis.optimalMoves !== 'N/A') {
+        content += `
+            <div class="optimal-moves-container">
+                <span class="label">Optimal Moves (to g=0):</span>
+                <div class="optimal-moves-list">${analysis.optimalMoves}</div>
+            </div>
+        `;
+    }
+
+    card.innerHTML = content;
     return card;
 }
 

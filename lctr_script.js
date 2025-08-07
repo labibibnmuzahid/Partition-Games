@@ -55,10 +55,11 @@ function randomPartition(n) { let parts = []; let remaining = n; let maxPart = n
 
 class Game {
     static PLAYERS = ["Alice", "Bob"];
-    constructor(board, aiPlayer) {
+    constructor(board, aiPlayer, gameMode = 'normal') {
         this.board = board;
         this.currentIndex = 0;
         this.aiIndex = aiPlayer ? Game.PLAYERS.indexOf(aiPlayer) : null;
+        this.gameMode = gameMode; // 'normal' | 'misere'
     }
     get currentPlayer() { return Game.PLAYERS[this.currentIndex]; }
     isAiTurn() { return this.aiIndex === this.currentIndex; }
@@ -88,6 +89,8 @@ class ProLCTRGui {
         this.isAnimating = false;
         this.aiDifficulty = '50';
         this.gameHistory = [];
+        this.analysis = null; // Will be attached if analysis script is loaded
+        this.gameMode = 'normal';
         
         // Database tracking properties
         this.initialPartition = [];
@@ -120,6 +123,7 @@ class ProLCTRGui {
         this.partitionTypeSelect = document.getElementById('partition-type-select');
         this.partitionNumberInput = document.getElementById('partition-number-input');
         this.generatePartitionBtn = document.getElementById('generate-partition-btn');
+        this.gameModeSelect = document.getElementById('game-mode-select');
         this.aiSelect = document.getElementById('ai-select');
         this.difficultySlider = document.getElementById('difficulty-slider');
         this.difficultyLabel = document.getElementById('difficulty-label');
@@ -130,6 +134,7 @@ class ProLCTRGui {
         this.helpBtnModal = document.getElementById('help-btn-modal');
         this.helpPopover = document.getElementById('help-popover');
         this.downloadBtnModal = document.getElementById('download-btn-modal');
+        this.reportBtnModal = document.getElementById('report-btn-modal');
         
         // Multiplayer elements
         this.multiplayerBtn = document.getElementById('multiplayer-btn');
@@ -159,8 +164,16 @@ class ProLCTRGui {
         if (this.generatePartitionBtn) {
             this.generatePartitionBtn.addEventListener('click', () => this.generatePartition());
         }
+        if (this.gameModeSelect) {
+            this.gameModeSelect.addEventListener('change', (e) => {
+                this.gameMode = e.target.value;
+            });
+        }
         if (this.downloadBtnModal) {
             this.downloadBtnModal.addEventListener('click', () => { SoundManager.play('click'); this.downloadGame(); });
+        }
+        if (this.reportBtnModal) {
+            this.reportBtnModal.addEventListener('click', () => { SoundManager.play('click'); this.openGameReport(); });
         }
         
         // Theme cycling functionality
@@ -321,19 +334,20 @@ class ProLCTRGui {
                          this.aiSelect.value === "A" ? "Alice" :
                          this.aiSelect.value === "B" ? "Bob" : null;
             this.aiDifficulty = this.difficultySlider.value;
+            this.gameMode = this.gameModeSelect ? this.gameModeSelect.value : 'normal';
             this.setupModal.classList.remove('visible');
-            this.startGame(nums, aiSide);
+            this.startGame(nums, aiSide, this.gameMode);
         } catch (e) {
             alert("Invalid input. Please enter positive, space-separated integers.");
         }
     }
 
-    startGame(rows, aiSide) {
+    startGame(rows, aiSide, gameMode = 'normal') {
         this.initialPartition = [...rows];
         this.gameHistory = [];
         this.movesSequence = []; // Reset moves tracking
         this.gameStartTime = new Date(); // Track when game started
-        this.game = new Game(new Board(rows), aiSide);
+        this.game = new Game(new Board(rows), aiSide, gameMode);
         this.hoveredMove = null;
         this.isAnimating = false;
         
@@ -350,6 +364,9 @@ class ProLCTRGui {
         if (!this.isMultiplayer && this.game.isAiTurn()) { 
             this.aiTurn(); 
         }
+
+        // Analysis integration
+        this.analysis?.onGameStart?.();
     }
 
     aiTurn() {
@@ -365,7 +382,11 @@ class ProLCTRGui {
                 if (this.game.board.width() > 0) legalMoves.push('col');
                 move = legalMoves[Math.floor(Math.random() * legalMoves.length)];
             } else {
-                move = perfectMove(this.game.board.asTuple());
+                if (this.game.gameMode === 'misere') {
+                    move = miserePerfectMove(this.game.board.asTuple());
+                } else {
+                    move = perfectMove(this.game.board.asTuple());
+                }
             }
             this.executeWithAnimation(move);
         }, this.AI_THINK_MS);
@@ -419,6 +440,8 @@ class ProLCTRGui {
             } else if (this.hoveredMove === 'col') {
                 for (let r = 0; r < this.game.board.height(); r++) { document.getElementById(`tile-${r}-0`)?.classList.add('highlighted'); }
             }
+            // Analysis hover integration
+            this.analysis?.updateHover?.(this.hoveredMove);
         }
         this.boardArea.classList.toggle('clickable', !!this.hoveredMove);
     }
@@ -458,17 +481,28 @@ class ProLCTRGui {
         this.isAnimating = false;
         if (finished) {
             SoundManager.play('win');
-            this.gameOverMessage.textContent = `Player ${this.game.currentPlayer} wins!`;
+            // Determine winner based on game mode
+            let winnerIndex;
+            if (this.game.gameMode === 'misere') {
+                // Last mover loses → winner is the other player
+                winnerIndex = 1 - this.game.currentIndex;
+            } else {
+                // Normal: last mover wins
+                winnerIndex = this.game.currentIndex;
+            }
+            const winnerName = Game.PLAYERS[winnerIndex];
+            this.gameOverMessage.textContent = `Player ${winnerName} wins!`;
             this.gameOverModal.classList.add('visible');
             
             // Save game to database
-            this.storeGameInDatabase(this.game.currentPlayer);
+            this.storeGameInDatabase(winnerName);
             
             this.redrawBoard();
             return;
         }
         this.redrawBoard();
         this.updateStatus();
+        this.analysis?.onMoveMade?.();
         if (this.game.isAiTurn()) { this.aiTurn(); }
     }
 
@@ -690,6 +724,23 @@ class ProLCTRGui {
         link.click();
         document.body.removeChild(link);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    openGameReport() {
+        if (!this.game) return;
+        const allStates = (this.gameHistory || []).map(state => {
+            const mask = state.board && state.board.grid ? state.board.grid : state.board;
+            return Array.isArray(mask) ? mask.join(' ') : '';
+        }).filter(Boolean);
+        const finalState = this.game.board.rows.join(' ');
+        if (finalState) allStates.push(finalState);
+        const uniqueStates = allStates.filter((s, i, self) => s && (i === 0 || s !== self[i-1]));
+        const statesString = uniqueStates.join('\n');
+        localStorage.setItem('lctrGameStatesForReport', statesString);
+        // Persist mode for unified report
+        const mode = this.game.gameMode || 'normal';
+        localStorage.setItem('lctrReportMode', mode);
+        window.open('public/report generator/report.html', '_blank');
     }
 
     generateGameReplayHTML_LCTR(gameStates, initialPartition) {
@@ -934,6 +985,10 @@ window.addEventListener('DOMContentLoaded', () => {
     // The global script.js handles theme initialization.
     // We just need to initialize our game GUI.
     window.lctrGame = new ProLCTRGui();
+    // Attach analysis if available
+    if (typeof LctrAnalysis !== 'undefined') {
+        window.lctrGame.analysis = new LctrAnalysis(window.lctrGame);
+    }
 });
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -948,3 +1003,42 @@ if (typeof module !== 'undefined' && module.exports) {
       Game
     };
   }
+
+// --- Misère logic for LCTR (for AI and analysis) ---
+const misereGrundyMemo = new Map();
+function misereGrundy(position) {
+    // Empty board: current player wins in misère
+    if (position === '[]') return 1;
+    if (misereGrundyMemo.has(position)) return misereGrundyMemo.get(position);
+    const posArray = JSON.parse(position);
+    // Children
+    const childRow = JSON.stringify(posArray.slice(1));
+    const childCol = JSON.stringify(posArray.map(r => r - 1).filter(r => r > 0));
+    // Winning if any child is losing
+    const isWinning = (misereGrundy(childRow) === 0) || (misereGrundy(childCol) === 0);
+    const value = isWinning ? 1 : 0;
+    misereGrundyMemo.set(position, value);
+    return value;
+}
+
+function miserePerfectMove(position) {
+    if (position === '[]') throw new Error('No legal move');
+    const posArray = JSON.parse(position);
+    const childRow = JSON.stringify(posArray.slice(1));
+    const childCol = JSON.stringify(posArray.map(r => r - 1).filter(r => r > 0));
+    if (misereGrundy(position) === 1) {
+        if (misereGrundy(childRow) === 0) return 'row';
+        if (misereGrundy(childCol) === 0) return 'col';
+    }
+    // Otherwise arbitrary legal
+    return posArray.length > 0 ? 'row' : 'col';
+}
+
+// Utility to load a previous game state (for analysis undo)
+ProLCTRGui.prototype.loadState = function loadState(lastState) {
+    if (!lastState) return;
+    this.game.board = new Board(lastState.board.grid);
+    this.game.currentIndex = lastState.currentIndex;
+    this.redrawBoard();
+    this.updateStatus();
+};

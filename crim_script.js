@@ -189,10 +189,11 @@ function perfectMove(position) {
 
 class Game {
     static PLAYERS = ["A", "B"];
-    constructor(board, aiPlayer) { 
+    constructor(board, aiPlayer, gameMode = 'normal') { 
         this.board = board; 
         this.currentIndex = 0; 
         this.aiIndex = aiPlayer ? Game.PLAYERS.indexOf(aiPlayer) : null; 
+        this.gameMode = gameMode;
     }
     get currentPlayer() { return Game.PLAYERS[this.currentIndex]; }
     isAiTurn() { return this.aiIndex === this.currentIndex; }
@@ -250,6 +251,9 @@ class ProLCTRGui {
         this.bindEventListeners();
         this.initTheme();
         SoundManager.init();
+        if (typeof CrimAnalysis === 'function') {
+            this.analysis = new CrimAnalysis(this);
+        }
     }
 
     getDOMElements() {
@@ -277,6 +281,8 @@ class ProLCTRGui {
         this.helpBtn = document.getElementById('help-btn');
         this.helpBtnModal = document.getElementById('help-btn-modal');
         this.helpPopover = document.getElementById('help-popover');
+        this.gameModeSelect = document.getElementById('game-mode-select');
+        this.reportBtnModal = document.getElementById('report-btn-modal');
     }
 
     bindEventListeners() {
@@ -297,6 +303,9 @@ class ProLCTRGui {
         const downloadBtnModal = document.getElementById('download-btn-modal');
         if (downloadBtnModal) {
             downloadBtnModal.addEventListener('click', () => { SoundManager.play('click'); this.downloadGame(); });
+        }
+        if (this.reportBtnModal) {
+            this.reportBtnModal.addEventListener('click', () => { SoundManager.play('click'); this.openGameReport(); });
         }
         
         // Theme cycling functionality
@@ -382,6 +391,9 @@ class ProLCTRGui {
         const y0 = this.LABEL; // Start from top with just label space
         
         this.drawBoard(this.game.board, x0, y0);
+        if (this.analysis && typeof this.analysis.updateToggleButton === 'function') {
+            this.analysis.updateToggleButton();
+        }
     }
 
     updateBoardDimensions() {
@@ -524,7 +536,7 @@ class ProLCTRGui {
         setTimeout(() => {
             this.clearHighlights();
             const move = { type: info.kind, index: info.index };
-            const winner = this.game.currentPlayer;
+            const lastMover = this.game.currentPlayer;
             
             // Track the move
             this.movesSequence.push(info.kind === 'row' ? `R${info.index}` : `C${info.index}`);
@@ -536,9 +548,13 @@ class ProLCTRGui {
             
             if (finished) {
                 SoundManager.play('win');
+                const winner = (this.game.gameMode === 'misere') ? (lastMover === 'A' ? 'B' : 'A') : lastMover;
                 this.gameOverMessage.textContent = `Player ${winner} wins!`;
                 this.gameOverModal.classList.add('visible');
                 this.storeGameInDatabase(winner);
+                if (this.analysis && typeof this.analysis.onMoveMade === 'function') {
+                    this.analysis.onMoveMade();
+                }
                         this.redrawBoard();
         this.updateStatus();
         this.updateUndoButton();
@@ -550,6 +566,9 @@ class ProLCTRGui {
             this.updateStatus();
             this.updateUndoButton();
             this.updateDownloadButton();
+            if (this.analysis && typeof this.analysis.onMoveMade === 'function') {
+                this.analysis.onMoveMade();
+            }
             if (this.game.isAiTurn()) {
                 this.aiTurn();
             }
@@ -608,15 +627,17 @@ class ProLCTRGui {
             const aiSide = this.aiSelect.value === "None" ? null : this.aiSelect.value; 
             this.aiDifficultyValue = parseInt(this.difficultySlider.value); 
             this.setupModal.classList.remove('visible'); 
-            this.startGame(nums, aiSide); 
+            const modeSelect = document.getElementById('game-mode-select');
+            const gameMode = modeSelect ? modeSelect.value : 'normal';
+            this.startGame(nums, aiSide, gameMode); 
         } catch (e) { 
             alert("Invalid input. Please enter positive integers only."); 
         } 
     }
 
-    startGame(rows, aiSide) { 
+    startGame(rows, aiSide, gameMode = 'normal') { 
         this.resetBoardDimensions();
-        this.game = new Game(new Board(rows), aiSide); 
+        this.game = new Game(new Board(rows), aiSide, gameMode); 
         this.isAnimating = false; 
         this.clearGameHistory(); // Clear undo history for new game
         // Initialize database tracking
@@ -628,6 +649,9 @@ class ProLCTRGui {
         this.updateUndoButton();
         this.updateDownloadButton();
         this.updateDownloadButton();
+        if (this.analysis && typeof this.analysis.onGameStart === 'function') {
+            this.analysis.onGameStart();
+        }
         if (this.game.isAiTurn()) { 
             this.aiTurn(); 
         } 
@@ -713,6 +737,25 @@ class ProLCTRGui {
         const newTheme = this.themeToggle.checked ? 'dark' : 'light'; 
         document.documentElement.setAttribute('data-theme', newTheme); 
         localStorage.setItem('theme', newTheme); 
+    }
+
+    openGameReport() {
+        if (!this.game) return;
+        // Collect states as row-length strings
+        const allStates = (this.gameHistory || []).map(state => {
+            const grid = state.board && state.board.grid ? state.board.grid : state.board;
+            if (!Array.isArray(grid)) return '';
+            const rowLengths = grid.map(row => row.reduce((s, v) => s + (v ? 1 : 0), 0)).filter(len => len > 0).sort((a, b) => b - a);
+            return rowLengths.join(' ');
+        }).filter(Boolean);
+        const currentRowLens = this.game.board.getRows().join(' ');
+        if (currentRowLens) allStates.push(currentRowLens);
+        const uniqueStates = allStates.filter((s, i, self) => s && (i === 0 || s !== self[i - 1]));
+        const statesString = uniqueStates.join('\n');
+        localStorage.setItem('crimGameStatesForReport', statesString);
+        const mode = this.game.gameMode || 'normal';
+        localStorage.setItem('crimReportMode', mode);
+        window.open('public/report generator/report.html', '_blank');
     }
 
 

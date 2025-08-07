@@ -27,7 +27,6 @@ function getUptimality(position) {
 
     if (g > 0) {
         // Winning position: find the fastest win.
-        // A win is a move to a g=0 state. We want the one with the lowest uptimality.
         const winningMovesUptimalities = [...allCornerMoves(board)].map(move => {
              const child = new Board([...board.rows]);
              child.makeCornerMoveWithSelection(move);
@@ -79,64 +78,63 @@ function calculateReversibleMoves(board) {
     const originalTuple = board.asTuple();
     let reversibleCount = 0;
 
-    // Get all possible moves from the current board
     for (const move of allCornerMoves(board)) {
-        // Create child board after making this move
         const childBoard = new Board([...board.rows]);
         childBoard.makeCornerMoveWithSelection(move);
         
-        // Check all possible moves from the child state
         for (const counterMove of allCornerMoves(childBoard)) {
             const grandchildBoard = new Board([...childBoard.rows]);
             grandchildBoard.makeCornerMoveWithSelection(counterMove);
             
-            // If any counter-move leads back to the original position, this move is reversible
             if (grandchildBoard.asTuple() === originalTuple) {
                 reversibleCount++;
-                break; // Found at least one reversal path, move to next move
+                break; 
             }
         }
     }
-
     return reversibleCount;
 }
 
 /**
- * Calculates and formats optimal winning moves as coordinate strings.
+ * Calculates and formats optimal winning moves for NORMAL play.
  * @param {Board} board - The current board state.
- * @returns {string} Formatted optimal moves string (e.g., "R1C4,R3C5 / R2C1")
+ * @returns {string} Formatted optimal moves string.
  */
 function calculateOptimalMoves(board) {
-    const currentTuple = board.asTuple();
-    const currentG = grundy(currentTuple);
-    
-    // If this is a P-position (losing position), there are no winning moves
-    if (currentG === 0) {
-        return "No winning moves (P-position)";
-    }
+    const currentG = grundy(board.asTuple());
+    if (currentG === 0) return "N/A (P-position)";
     
     const optimalMoves = [];
-    
-    // Check all possible moves
     for (const move of allCornerMoves(board)) {
         const childBoard = new Board([...board.rows]);
         childBoard.makeCornerMoveWithSelection(move);
-        const childG = grundy(childBoard.asTuple());
-        
-        // A move is optimal if it leads to a P-position (g-value = 0)
-        if (childG === 0) {
-            // Format the move as coordinate strings (0-based indexing)
+        if (grundy(childBoard.asTuple()) === 0) {
             const moveString = move.map(piece => `R${piece.row}C${piece.col}`).join(',');
-            optimalMoves.push(moveString);
+            optimalMoves.push(`[${moveString}]`);
         }
     }
-    
-    if (optimalMoves.length === 0) {
-        return "No winning moves available";
+    return optimalMoves.join(' / ') || "No winning moves found.";
+}
+
+/**
+ * Calculates and formats optimal winning moves for MISERE play.
+ * @param {Board} board - The current board state.
+ * @returns {string} Formatted optimal moves string.
+ */
+function calculateMisereOptimalMoves(board) {
+    const isWinning = misereGrundy(board.asTuple()) === 1;
+    if (!isWinning) return "N/A (P-position)";
+
+    const optimalMoves = [];
+    for (const move of allCornerMoves(board)) {
+        const childBoard = new Board([...board.rows]);
+        childBoard.makeCornerMoveWithSelection(move);
+        if (misereGrundy(childBoard.asTuple()) === 0) { // A winning move leads to a losing state for opponent
+            const moveString = move.map(p => `R${p.row}C${p.col}`).join(',');
+            optimalMoves.push(`[${moveString}]`);
+        }
     }
-    
-    // Join multiple optimal moves with " / " separator
-    return optimalMoves.join(' / ');
+    return optimalMoves.join(' / ') || "No winning moves found.";
 }
 
 
@@ -144,22 +142,20 @@ class CornerAnalysis {
     constructor(gui) {
         this.gui = gui;
         this.isEnabled = false;
-        this.gNumberHistory = []; // Track g-number history for chart
+        this.valueHistory = []; // Generic history for g-number or misere value
         this.getDOMElements();
         this.bindEventListeners();
-        this.updateToggleButton(); // Initialize button state
+        this.updateToggleButton();
     }
 
     getDOMElements() {
         this.analysisContainer = document.getElementById('analysis-container');
         this.undoBtn = document.getElementById('undo-btn');
         this.analysisToggle = document.getElementById('analysis-mode-toggle');
-
-        // Info button element
         this.analysisInfoBtn = document.getElementById('analysis-info-btn');
 
-        // Panel fields
         this.p_n_status = document.getElementById('p-n-status');
+        this.g_value_label = document.querySelector('#g-value').previousElementSibling;
         this.g_value = document.getElementById('g-value');
         this.uptimality = document.getElementById('uptimality-value');
         this.reachable_moves = document.getElementById('reachable-moves');
@@ -169,7 +165,6 @@ class CornerAnalysis {
         this.optimal_moves = document.getElementById('optimal-moves');
         this.gNumberChart = document.getElementById('g-number-chart');
         
-        // Set canvas dimensions if not already set
         if (this.gNumberChart && (!this.gNumberChart.width || !this.gNumberChart.height)) {
             this.gNumberChart.width = 250;
             this.gNumberChart.height = 120;
@@ -178,15 +173,13 @@ class CornerAnalysis {
 
     bindEventListeners() {
         if (this.analysisToggle) {
-            this.analysisToggle.addEventListener('click', (e) => {
+            this.analysisToggle.addEventListener('click', () => {
                 this.isEnabled = !this.isEnabled;
                 this.updateToggleButton();
                 this.toggleVisibility(this.isEnabled);
                 if (this.isEnabled && this.gui.game) {
-                    // If analysis mode is enabled mid-game, update the panel
                     this.updatePanel();
                 }
-                // Redraw the board to show/hide labels
                 if (this.gui.game) {
                     this.gui.redrawBoard();
                 }
@@ -195,8 +188,6 @@ class CornerAnalysis {
         if (this.undoBtn) {
             this.undoBtn.addEventListener('click', () => this.undoMove());
         }
-
-        // Info button event listener
         if (this.analysisInfoBtn) {
             this.analysisInfoBtn.addEventListener('click', () => this.openAnalysisDoc());
         }
@@ -206,28 +197,30 @@ class CornerAnalysis {
         if (this.analysisToggle) {
             this.analysisToggle.classList.toggle('active', this.isEnabled);
             this.analysisToggle.classList.toggle('panel-visible', this.isEnabled);
+            // Update label when active/inactive
+            if (this.isEnabled) {
+                this.analysisToggle.textContent = '☝️🤓';
+            } else {
+                this.analysisToggle.textContent = '☝️🤓 [analysis-mode]';
+            }
         }
     }
     
-    // Called when a new game starts
     onGameStart() {
         if (this.isEnabled) {
-            // Clear caches for the new game
             uptimalityMemo.clear();
             gameDepthMemo.clear();
-            this.gNumberHistory = []; // Reset g-number history
+            this.valueHistory = [];
             
-            // Add initial position to history
             if (this.gui.game && this.gui.game.board) {
-                const initialG = grundy(this.gui.game.board.asTuple());
-                this.gNumberHistory.push(initialG);
+                const isMisere = this.gui.game.gameMode === 'misere';
+                const initialValue = isMisere ? misereGrundy(this.gui.game.board.asTuple()) : grundy(this.gui.game.board.asTuple());
+                this.valueHistory.push(initialValue);
             }
             
-            // Ensure visibility is properly set and panel is updated
             this.toggleVisibility(true);
             this.updatePanel();
         } else {
-            // If analysis mode is disabled, ensure it's hidden
             this.toggleVisibility(false);
         }
     }
@@ -243,195 +236,162 @@ class CornerAnalysis {
     undoMove() {
         if (this.gui.gameHistory.length > 0) {
             const lastState = this.gui.gameHistory.pop();
-            // We need a way to load a state in the main GUI.
-            // Let's assume we add a `loadState` method to ProCornerGui.
             this.gui.loadState(lastState);
-            // Also remove the last entry from g-number history
-            if (this.gNumberHistory.length > 0) {
-                this.gNumberHistory.pop();
+            if (this.valueHistory.length > 0) {
+                this.valueHistory.pop();
             }
             this.updatePanel();
         }
     }
 
-    // Add g-number to history after a move is made
-    addToHistory(gNumber) {
-        if (this.isEnabled) {
-            this.gNumberHistory.push(gNumber);
-        }
-    }
-
-    // Called after a move is made (should be called from the main game logic)
     onMoveMade() {
         if (this.isEnabled && this.gui.game && this.gui.game.board) {
-            const currentG = grundy(this.gui.game.board.asTuple());
-            this.addToHistory(currentG);
+            const isMisere = this.gui.game.gameMode === 'misere';
+            const currentValue = isMisere ? misereGrundy(this.gui.game.board.asTuple()) : grundy(this.gui.game.board.asTuple());
+            this.valueHistory.push(currentValue);
             this.updatePanel();
         }
     }
 
-    // Draw the g-number advantage chart
     drawAdvantageChart() {
         if (!this.gNumberChart) return;
-
+        const isMisere = this.gui.game.gameMode === 'misere';
         const ctx = this.gNumberChart.getContext('2d');
         const width = this.gNumberChart.width;
         const height = this.gNumberChart.height;
         
-        // Clear the canvas
         ctx.clearRect(0, 0, width, height);
         
-        // Set up chart styling
         const padding = 20;
-        const chartWidth = width - 2 * padding;
-        const chartHeight = height - 2 * padding;
-        
-        // Set styles
         ctx.strokeStyle = getComputedStyle(document.body).color || '#E0E0E0';
         ctx.fillStyle = ctx.strokeStyle;
         ctx.lineWidth = 2;
         ctx.font = '10px monospace';
         
-        // Draw axes
         ctx.beginPath();
         ctx.moveTo(padding, padding);
         ctx.lineTo(padding, height - padding);
         ctx.lineTo(width - padding, height - padding);
         ctx.stroke();
         
-        // If no history yet, show "No data" message
-        if (this.gNumberHistory.length === 0) {
-            ctx.fillText('No data yet', padding + 5, height / 2);
+        if (this.valueHistory.length === 0) {
+            ctx.fillText('No data', padding + 5, height / 2);
             return;
         }
         
-        // Find max g-number for scaling
-        const maxG = Math.max(...this.gNumberHistory, 1);
-        const minG = Math.min(...this.gNumberHistory, 0);
-        const range = Math.max(maxG - minG, 1);
+        const maxVal = isMisere ? 1 : Math.max(...this.valueHistory, 1);
+        const minVal = 0;
+        const range = Math.max(maxVal - minVal, 1);
         
-        // Draw data points and lines
-        if (this.gNumberHistory.length === 1) {
-            // Single point - draw it at the center
-            const x = padding + chartWidth / 2;
-            const y = height - padding - ((this.gNumberHistory[0] - minG) / range) * chartHeight;
-            ctx.fillRect(x - 3, y - 3, 6, 6);
-        } else {
-            // Multiple points - draw line graph
+        if (this.valueHistory.length > 1) {
             ctx.beginPath();
-            ctx.lineWidth = 2;
-            
-            for (let i = 0; i < this.gNumberHistory.length; i++) {
-                const x = padding + (i / (this.gNumberHistory.length - 1)) * chartWidth;
-                const y = height - padding - ((this.gNumberHistory[i] - minG) / range) * chartHeight;
-                
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-                
-                // Draw point
+            for (let i = 0; i < this.valueHistory.length; i++) {
+                const x = padding + (i / (this.valueHistory.length - 1)) * (width - 2 * padding);
+                const y = height - padding - ((this.valueHistory[i] - minVal) / range) * (height - 2 * padding);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
                 ctx.fillRect(x - 2, y - 2, 4, 4);
             }
             ctx.stroke();
+        } else {
+             const x = padding + (width - 2 * padding) / 2;
+             const y = height - padding - ((this.valueHistory[0] - minVal) / range) * (height - 2 * padding);
+             ctx.fillRect(x - 3, y - 3, 6, 6);
         }
         
-        // Draw current value label
-        const currentG = this.gNumberHistory[this.gNumberHistory.length - 1];
-        ctx.fillText(`Current: ${currentG}`, padding + 5, padding + 15);
-        
-        // Draw moves count
-        ctx.fillText(`Moves: ${this.gNumberHistory.length - 1}`, padding + 5, height - padding - 5);
+        const currentVal = this.valueHistory[this.valueHistory.length - 1];
+        const label = isMisere ? (currentVal === 1 ? 'Win' : 'Loss') : `G:${currentVal}`;
+        ctx.fillText(`Current: ${label}`, padding + 5, padding + 15);
+        ctx.fillText(`Moves: ${this.valueHistory.length - 1}`, padding + 5, height - 5);
     }
 
-    // Called after any move or undo
     updatePanel() {
         if (!this.isEnabled || !this.gui.game) return;
         
         const board = this.gui.game.board;
+        const isMisere = this.gui.game.gameMode === 'misere';
+
         if (board.isEmpty()) {
-            // Don't hide the container, just show that there's no data
-            this.p_n_status.textContent = 'Game not started';
+            this.p_n_status.textContent = 'Game Over';
             this.g_value.textContent = '-';
             this.uptimality.textContent = '-';
             this.reachable_moves.textContent = '-';
             this.game_depth.textContent = '-';
             this.reversible_moves.textContent = '-';
-            this.optimal_moves.textContent = 'No moves available';
+            this.optimal_moves.textContent = 'N/A';
             this.move_incentive.textContent = '-';
             this.drawAdvantageChart();
             return;
         }
 
         const positionTuple = board.asTuple();
-        const g = grundy(positionTuple);
-        const u = getUptimality(positionTuple);
-        const depth = getGameDepth(positionTuple);
         const moves = board.getSelectableLastPieces().length;
         const totalMoves = moves > 0 ? (BigInt(1) << BigInt(moves)) - BigInt(1) : BigInt(0);
-        
-        // Calculate reversible moves
-        const reversibleMoves = calculateReversibleMoves(board);
-        
-        // Calculate optimal moves
-        const optimalMoves = calculateOptimalMoves(board);
-        
-        // Calculate move incentive (min/max change in g-number)
-        let minIncentive = Infinity;
-        let maxIncentive = -Infinity;
-        let hasValidMoves = false;
-        
-        for (const move of allCornerMoves(board)) {
-            const childBoard = new Board([...board.rows]);
-            childBoard.makeCornerMoveWithSelection(move);
-            const childG = grundy(childBoard.asTuple());
-            const incentive = g - childG;
-            
-            minIncentive = Math.min(minIncentive, incentive);
-            maxIncentive = Math.max(maxIncentive, incentive);
-            hasValidMoves = true;
-        }
-        
-        // Update all display elements
-        this.p_n_status.textContent = g > 0 ? 'N-Position' : 'P-Position';
-        this.g_value.textContent = g;
-        this.uptimality.textContent = u;
         this.reachable_moves.textContent = totalMoves.toString();
-        this.game_depth.textContent = depth;
-        this.reversible_moves.textContent = reversibleMoves;
-        this.optimal_moves.textContent = optimalMoves;
-        
-        if (hasValidMoves) {
-            this.move_incentive.textContent = `${minIncentive} / ${maxIncentive}`;
-        } else {
+        this.reversible_moves.textContent = calculateReversibleMoves(board);
+
+        if (isMisere) {
+            const misereValue = misereGrundy(positionTuple);
+            this.p_n_status.textContent = misereValue === 1 ? 'N-Position' : 'P-Position';
+            this.g_value_label.textContent = 'Misere Value:';
+            this.g_value.textContent = misereValue === 1 ? 'Winning' : 'Losing';
+            this.optimal_moves.textContent = calculateMisereOptimalMoves(board);
+            
+            // These metrics are not applicable to misere play in the same way
+            this.uptimality.textContent = 'N/A';
+            this.game_depth.textContent = 'N/A';
             this.move_incentive.textContent = 'N/A';
+        } else {
+            // Normal play logic
+            const g = grundy(positionTuple);
+            this.p_n_status.textContent = g > 0 ? 'N-Position' : 'P-Position';
+            this.g_value_label.textContent = 'Grundy Value:';
+            this.g_value.textContent = g;
+            this.uptimality.textContent = getUptimality(positionTuple);
+            this.game_depth.textContent = getGameDepth(positionTuple);
+            this.optimal_moves.textContent = calculateOptimalMoves(board);
+
+            let minIncentive = Infinity, maxIncentive = -Infinity, hasValidMoves = false;
+            for (const move of allCornerMoves(board)) {
+                const childBoard = new Board([...board.rows]);
+                childBoard.makeCornerMoveWithSelection(move);
+                const incentive = g - grundy(childBoard.asTuple());
+                minIncentive = Math.min(minIncentive, incentive);
+                maxIncentive = Math.max(maxIncentive, incentive);
+                hasValidMoves = true;
+            }
+            this.move_incentive.textContent = hasValidMoves ? `${minIncentive} / ${maxIncentive}` : 'N/A';
         }
         
-        // Draw the g-number chart
         this.drawAdvantageChart();
     }
 
-    // --- Hover Logic ---
     updateHover(selectedPieces) {
         this.clearHighlights();
         if (!this.isEnabled || selectedPieces.length === 0) return;
 
-        const currentGrundy = grundy(this.gui.game.board.asTuple());
-
-        const childBoard = new Board([...this.gui.game.board.rows]);
+        const isMisere = this.gui.game.gameMode === 'misere';
+        const board = this.gui.game.board;
+        const childBoard = new Board([...board.rows]);
         childBoard.makeCornerMoveWithSelection(selectedPieces);
-        const childGrundy = grundy(childBoard.asTuple());
-        
+
         let highlightClass = '';
-        if (currentGrundy > 0) { // Winning position
-            if (childGrundy === 0) {
-                highlightClass = 'winning-move-highlight'; // Good move
+
+        if (isMisere) {
+            const isWinning = misereGrundy(board.asTuple()) === 1;
+            const childIsLosing = misereGrundy(childBoard.asTuple()) === 0;
+            if (isWinning) {
+                highlightClass = childIsLosing ? 'winning-move-highlight' : 'blunder-move-highlight';
             } else {
-                highlightClass = 'blunder-move-highlight'; // Bad move
+                highlightClass = 'neutral-move-highlight';
             }
-        } else { // Losing position
-            highlightClass = 'neutral-move-highlight';
+        } else {
+            const currentGrundy = grundy(board.asTuple());
+            const childGrundy = grundy(childBoard.asTuple());
+            if (currentGrundy > 0) {
+                highlightClass = (childGrundy === 0) ? 'winning-move-highlight' : 'blunder-move-highlight';
+            } else {
+                highlightClass = 'neutral-move-highlight';
+            }
         }
 
         selectedPieces.forEach(p => {
@@ -446,7 +406,6 @@ class CornerAnalysis {
         });
     }
 
-    // --- Info Documentation Method ---
     openAnalysisDoc() {
         window.open('docs/analysis_doc.html', '_blank');
     }
