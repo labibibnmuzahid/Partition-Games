@@ -474,6 +474,8 @@ footer {
     min-height: 480px; 
     min-width: 480px; 
     margin: 0 auto;
+    overflow: hidden;     /* optional: keeps huge coords from enlarging page */
+    will-change: transform;   /* hint for the compositor */
 }
 
 #board-area.clickable { cursor: pointer; }
@@ -489,7 +491,19 @@ footer {
     border-bottom-color: var(--tile-shadow); 
     image-rendering: pixelated; 
     pointer-events: none; 
-    transition: all 0.3s ease, top 0.4s cubic-bezier(0.5, 1.5, 0.5, 1); 
+    
+    /* NEW — trimmed transition list: */
+    transition: background-color 0.3s ease,
+                border-color     0.3s ease,
+                transform        0.3s ease;
+    /* no "all", no "top", no "left" */
+    
+    contain: layout paint style; /* optimization hint */
+}
+
+.tile,
+.label-cell{
+    position: absolute;
 }
 
 .tile.highlighted { 

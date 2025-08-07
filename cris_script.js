@@ -66,7 +66,6 @@ class Fragment{
     this.grid=grid;this.rows=grid.length;  
     this.cols=this.rows?grid[0].length:0;  
     this.x=x;this.y=y;  
-    this.partitionId = 0; // NEW: partition ID for move notation
   }  
   rowsAlive(){const a=[];for(let r=0;r<this.rows;r++)if(this.grid[r].some(v=>v))a.push(r);return a;}  
   colsAlive(){  
@@ -135,39 +134,13 @@ class Fragment{
 }  
   
 class GameState{  
-  constructor(rowSizes){
-    const f = Fragment.fromRowSizes(rowSizes);
-    f.partitionId = 1; // initial fragment is P1
-    this.fragments = [f];
-    this.nextPartitionId = 2; // counter for future partitions
-    this.player=Player.RED;
-  }  
+  constructor(rowSizes){this.fragments=[Fragment.fromRowSizes(rowSizes)];this.player=Player.RED;}  
   hasMoves(){return this.fragments.some(f=>f.hasMoves());}  
   performMove(fIdx,kind,lineIdx){  
-    const frag = this.fragments[fIdx];
-    const parentPid = frag.partitionId;   // remember the id we started with
-    const originalX=frag.x,originalY=frag.y;  
+    const frag=this.fragments[fIdx],originalX=frag.x,originalY=frag.y;  
     if(kind==='row')frag.deleteRow(lineIdx);else frag.deleteCol(lineIdx);  
-    const newFrags = frag.splitIntoFragments();   // after the cut  
+    const newFrags=frag.splitIntoFragments();  
   
-    /* ── id-handling ─────────────────────────────────────────── */  
-    if(newFrags.length === 1){                 // no split ⇒ keep the old id  
-      newFrags[0].partitionId = parentPid;  
-    }else{                                     // a true split  
-      newFrags[0].partitionId = parentPid;     // the "senior" piece  
-      for(let i = 1; i < newFrags.length; i++){// younger pieces  
-        newFrags[i].partitionId = this.nextPartitionId++;  
-      }  
-    }  
-    /* ────────────────────────────────────────────────────────── */  
-  
-    // Replace parent in fragment array  
-    this.fragments.splice(fIdx, 1, ...newFrags);  
-  
-    // Keep the array ordered (OPTIONAL, purely cosmetic)  
-    this.fragments.sort((a, b) => a.partitionId - b.partitionId);  
-  
-    // Position the children
     if(newFrags.length>1){  
       if(kind==='row'){  
         let y=originalY;  
@@ -176,13 +149,9 @@ class GameState{
         let x=originalX;  
         newFrags.forEach(nf=>{nf.x=x;nf.y=originalY;x+=nf.cols*40+60;});  
       }  
-    }else if(newFrags.length===1){
-      newFrags[0].x=originalX;newFrags[0].y=originalY;
-    }
-    
-    // Sanity check (optional but helpful)
-    assertUniqueIds(this.fragments);
-    
+    }else if(newFrags.length===1){newFrags[0].x=originalX;newFrags[0].y=originalY;}  
+  
+    this.fragments.splice(fIdx,1,...newFrags);  
     this.player=Player.other(this.player);  
   }  
 }  
@@ -301,7 +270,6 @@ class CRIM_GUI{
       // Initialize database tracking
       this.movesSequence = [];
       this.gameStartTime = new Date();
-      this.initialPartition = [...nums]; // Store initial partition
       this.updateUndoButton();
       this.updateDownloadButton();
       const playerLetter=this.getLetterFromPlayer(this.state.player);  
@@ -335,25 +303,16 @@ class CRIM_GUI{
   saveGameState(){  
     if(!this.state)return;  
     const fragmentsCopy=this.state.fragments.map(f=>{  
-      const g=f.grid.map(row=>[...row]);
-      const clone = new Fragment(g,f.x,f.y);
-      clone.partitionId = f.partitionId; // NEW
-      return clone;
+      const g=f.grid.map(row=>[...row]);return new Fragment(g,f.x,f.y);  
     });  
-    this.gameHistory.push({
-      fragments:fragmentsCopy,
-      player:this.state.player,
-      nextPid: this.state.nextPartitionId // NEW
-    });  
+    this.gameHistory.push({fragments:fragmentsCopy,player:this.state.player});  
     this.updateDownloadButton();
   }  
   undoMove(){  
     if(!this.canUndo())return;  
     SoundManager.play('click');  
     const prev=this.gameHistory.pop();  
-    this.state.fragments=prev.fragments;
-    this.state.player=prev.player;
-    this.state.nextPartitionId= prev.nextPid; // NEW
+    this.state.fragments=prev.fragments;this.state.player=prev.player;
     // Remove the last move from the sequence
     this.movesSequence.pop();
     this.redraw();  
@@ -484,12 +443,8 @@ class CRIM_GUI{
     SoundManager.play('click');  
     ev.currentTarget.classList.add(info.kind==='row'?'row-win':'col-win');  
     setTimeout(()=>{  
-      // BEFORE executing the move, capture the partition id
-      const pid = this.state.fragments[info.frag].partitionId;
-      const token = info.kind==='row'
-        ? `R${info.index} (P${pid})`
-        : `C${info.index} (P${pid})`;
-      this.movesSequence.push(token); // now full notation
+      // Track the move
+      this.movesSequence.push(info.kind === 'row' ? `R${info.index}` : `C${info.index}`);
       
       this.state.performMove(info.frag,info.kind,info.index);  
       if(!this.state.hasMoves()){  
@@ -534,7 +489,7 @@ class CRIM_GUI{
       if (window.DatabaseUtils) {
         await window.DatabaseUtils.storeGameInDatabase(
           'CRIS',
-          this.initialPartition,
+          this.state.fragments[0] ? this.state.fragments[0].getRows() : [],
           this.movesSequence,
           winner && winner.charAt(0),
           this.gameStartTime
@@ -563,22 +518,7 @@ window.addEventListener('load',()=>{
   
 /* ────────────────────  DOWNLOAD  ──────────────────── */  
 function cloneFrag(f){  
-  return{
-    rows:f.rows,
-    cols:f.cols,
-    x:f.x,
-    y:f.y,
-    partitionId : f.partitionId, // keep the original
-    grid:f.grid.map(r=>[...r])
-  };  
-}
-
-// Sanity checks (optional but helpful)
-function assertUniqueIds(fragments) {  
-  const ids = new Set(fragments.map(f => f.partitionId));  
-  if (ids.size !== fragments.length) {  
-    throw new Error('Duplicate partitionId detected – invariant broken!');  
-  }  
+  return{rows:f.rows,cols:f.cols,grid:f.grid.map(r=>[...r])};  
 }  
   
 function downloadGame(){  
