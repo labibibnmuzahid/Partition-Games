@@ -447,7 +447,7 @@ class CRPS_GUI{
   drawFragment(frag,fIdx,x0,y0){  
     // Only draw row labels if current player is RED (Player A)
     if (this.state.player === Player.RED) {
-      frag.rowsAlive().forEach(r=>{  
+    frag.rowsAlive().forEach(r=>{  
         const div=document.createElement('div');div.className='label-cell row-label';  
       div.style.width=`${this.LABEL}px`;div.style.height=`${this.CELL}px`;  
       div.style.left=`${x0-this.LABEL}px`;div.style.top=`${y0+r*this.CELL}px`;  
@@ -460,7 +460,7 @@ class CRPS_GUI{
     
     // Only draw column labels if current player is BLUE (Player B)
     if (this.state.player === Player.BLUE) {
-      frag.colsAlive().forEach(c=>{  
+    frag.colsAlive().forEach(c=>{  
         const div=document.createElement('div');div.className='label-cell col-label';  
       div.style.width=`${this.CELL}px`;div.style.height=`${this.LABEL}px`;  
       div.style.left=`${x0+c*this.CELL}px`;div.style.top=`${y0-this.LABEL}px`;  
@@ -512,7 +512,9 @@ class CRPS_GUI{
           globalC = (frag.colOffset || 0) + c;
         }
       }
-      const moveStr = `R${globalR}C${globalC}`;
+      const moveStr = (info.kind === 'row')
+        ? `(R${globalR}xC${globalC})`
+        : `(C${globalC}xR${globalR})`;
       this.movesSequence.push(moveStr);
       this.moveContexts.push({
         fragmentName: fragName,

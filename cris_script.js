@@ -498,7 +498,9 @@ class CRIM_GUI{
           globalC = (frag.colOffset || 0) + c;
         }
       }
-      const moveStr = `R${globalR}C${globalC}`;
+      const moveStr = (info.kind === 'row')
+        ? `(R${globalR}xC${globalC})`
+        : `(C${globalC}xR${globalR})`;
       this.movesSequence.push(moveStr);
       this.moveContexts.push({
         fragmentName: fragName,
