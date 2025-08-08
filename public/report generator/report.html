@@ -7,6 +7,10 @@
 
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="report.css" />
+  <link rel="icon" href="data:," />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 <body>
   <header>
@@ -42,6 +46,10 @@
     </div>
 
     <div id="report-container"></div>
+
+    <div id="chart-wrapper" class="report-card" style="display: none;">
+      <canvas id="g-number-chart"></canvas>
+    </div>
   </main>
 
   <script>
@@ -50,74 +58,7 @@
   <script src="corner_report.js"></script>
   <script src="lctr_report.js"></script>
   <script src="crim_report.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const gameSelect = document.getElementById('game-select');
-      const generateBtn = document.getElementById('generate-report-btn');
-      const inputArea = document.getElementById('game-states-input');
-      const reportContainer = document.getElementById('report-container');
-
-      function loadFromStorage() {
-        // Prefer specific keys; fall back to generic
-        const cornerKey = 'cornerGameStatesForReport';
-        const lctrKey = 'lctrGameStatesForReport';
-        const crimKey = 'crimGameStatesForReport';
-        const cornerModeKey = 'cornerReportMode';
-        const lctrModeKey = 'lctrReportMode';
-        const crimModeKey = 'crimReportMode';
-        const corner = localStorage.getItem(cornerKey);
-        const lctr = localStorage.getItem(lctrKey);
-        const crim = localStorage.getItem(crimKey);
-        if (corner) {
-          gameSelect.value = 'Corner';
-          inputArea.value = corner;
-          localStorage.removeItem(cornerKey);
-          const mode = localStorage.getItem(cornerModeKey);
-          if (mode === 'misere' || mode === 'normal') {
-            document.getElementById('game-mode-select').value = mode;
-            localStorage.removeItem(cornerModeKey);
-          }
-        } else if (lctr) {
-          gameSelect.value = 'LCTR';
-          inputArea.value = lctr;
-          localStorage.removeItem(lctrKey);
-          const mode = localStorage.getItem(lctrModeKey);
-          if (mode === 'misere' || mode === 'normal') {
-            document.getElementById('game-mode-select').value = mode;
-            localStorage.removeItem(lctrModeKey);
-          }
-        } else if (crim) {
-          gameSelect.value = 'CRIM';
-          inputArea.value = crim;
-          localStorage.removeItem(crimKey);
-          const mode = localStorage.getItem(crimModeKey);
-          if (mode === 'misere' || mode === 'normal') {
-            document.getElementById('game-mode-select').value = mode;
-            localStorage.removeItem(crimModeKey);
-          }
-        }
-      }
-
-      function render() {
-        const game = gameSelect.value;
-        const mode = document.getElementById('game-mode-select').value;
-        if (game === 'Corner') {
-          window.CornerReport.render(reportContainer, inputArea.value, mode);
-        } else if (game === 'LCTR') {
-          window.LctrReport.render(reportContainer, inputArea.value, mode);
-        } else if (game === 'CRIM') {
-          window.CrimReport.render(reportContainer, inputArea.value, mode);
-        }
-      }
-
-      generateBtn.addEventListener('click', render);
-      loadFromStorage();
-      // If prefilled from storage, auto-render once
-      if (inputArea.value.trim().length > 0) {
-        render();
-      }
-    });
-  </script>
+  <script src="report.js"></script>
 </body>
 </html>
 

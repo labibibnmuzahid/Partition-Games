@@ -25,6 +25,55 @@ function crimMisereValue(position) {
   crimMisereMemo.set(position, 0); return 0;
 }
 
+// --- Additional CRIM metrics: Uptimality and Game Depth ---
+const crimUptMemo = new Map();
+const crimDepthMemo = new Map();
+
+function crimChildrenFromTuple(position) {
+  const posArray = JSON.parse(position); // sorted desc
+  const children = [];
+  const width = posArray.length > 0 ? posArray[0] : 0;
+  // Remove any row
+  for (let i = 0; i < posArray.length; i++) {
+    const nextPos = [...posArray];
+    nextPos.splice(i, 1);
+    children.push(JSON.stringify(nextPos.sort((a, b) => b - a)));
+  }
+  // Remove any column
+  for (let j = 0; j < width; j++) {
+    const nextPos = posArray.map(len => (len > j ? len - 1 : len)).filter(len => len > 0);
+    children.push(JSON.stringify(nextPos.sort((a, b) => b - a)));
+  }
+  return children;
+}
+
+function crimGetUptimality(position) {
+  if (position === '[]') return 0;
+  if (crimUptMemo.has(position)) return crimUptMemo.get(position);
+  const g = grundy(position);
+  const childPositions = crimChildrenFromTuple(position);
+  let value;
+  if (g > 0) {
+    const winningUpts = childPositions.map(p => (grundy(p) === 0 ? crimGetUptimality(p) : Infinity));
+    value = 1 + Math.min(...winningUpts);
+  } else {
+    const childUpts = childPositions.map(p => crimGetUptimality(p));
+    value = 1 + (childUpts.length ? Math.max(...childUpts) : -1);
+  }
+  crimUptMemo.set(position, value);
+  return value;
+}
+
+function crimGetGameDepth(position) {
+  if (position === '[]') return 0;
+  if (crimDepthMemo.has(position)) return crimDepthMemo.get(position);
+  const childPositions = crimChildrenFromTuple(position);
+  const childDepths = childPositions.map(p => crimGetGameDepth(p));
+  const value = 1 + (childDepths.length ? Math.max(...childDepths) : -1);
+  crimDepthMemo.set(position, value);
+  return value;
+}
+
 function crimAllMoves(board) {
   const moves = [];
   for (const r of board.rowsAlive()) moves.push({ type: 'row', index: r });
@@ -66,7 +115,10 @@ class CrimAnalysis {
         </div>
         <p><span class="label">Position Status:</span> <span id="p-n-status">N/A</span></p>
         <p><span class="label" id="g-value-label">Grundy Value:</span> <span id="g-value">N/A</span></p>
+        <p><span class="label">Uptimality:</span> <span id="uptimality-value">N/A</span></p>
         <p><span class="label">Reachable Moves:</span> <span id="reachable-moves">N/A</span></p>
+        <p><span class="label">Game Depth:</span> <span id="game-depth">N/A</span></p>
+        <p><span class="label">Move Incentive (Min/Max):</span> <span id="move-incentive">N/A</span></p>
         <div class="optimal-moves-container">
           <span class="label">Optimal Moves:</span>
           <div id="optimal-moves" class="optimal-moves-list">N/A</div>
@@ -83,8 +135,11 @@ class CrimAnalysis {
     this.p_n_status = document.getElementById('p-n-status');
     this.g_value_label = document.getElementById('g-value-label');
     this.g_value = document.getElementById('g-value');
+    this.uptimality = document.getElementById('uptimality-value');
     this.reachable_moves = document.getElementById('reachable-moves');
+    this.game_depth = document.getElementById('game-depth');
     this.optimal_moves = document.getElementById('optimal-moves');
+    this.move_incentive = document.getElementById('move-incentive');
     this.gNumberChart = document.getElementById('g-number-chart');
   }
 
@@ -117,6 +172,8 @@ class CrimAnalysis {
   onGameStart() {
     this.valueHistory = [];
     crimMisereMemo.clear();
+    crimUptMemo.clear();
+    crimDepthMemo.clear();
     if (this.isEnabled && this.gui.game && this.gui.game.board) {
       const isMisere = this.gui.game.gameMode === 'misere';
       const tuple = this.gui.game.board.asTuple();
@@ -199,6 +256,7 @@ class CrimAnalysis {
       this.p_n_status.textContent = mv === 1 ? 'N-Position' : 'P-Position';
       this.g_value_label.textContent = 'Misere Value:';
       this.g_value.textContent = mv === 1 ? 'Winning' : 'Losing';
+      this.uptimality.textContent = 'N/A';
       // Optimal moves under misere
       const opts = [];
       for (const m of crimAllMoves(board)) {
@@ -206,17 +264,31 @@ class CrimAnalysis {
         if (crimMisereValue(childTuple) === 0) opts.push(m.type.toUpperCase() + ' ' + m.index);
       }
       this.optimal_moves.textContent = opts.length ? opts.join(' / ') : 'No winning moves found.';
+      this.game_depth.textContent = 'N/A';
+      this.move_incentive.textContent = 'N/A';
     } else {
       const g = grundy(tuple);
       this.p_n_status.textContent = g > 0 ? 'N-Position' : 'P-Position';
       this.g_value_label.textContent = 'Grundy Value:';
       this.g_value.textContent = g;
+      this.uptimality.textContent = crimGetUptimality(tuple);
+      this.game_depth.textContent = crimGetGameDepth(tuple);
       const opts = [];
       for (const m of crimAllMoves(board)) {
         const childTuple = crimChildTuple(board, m);
         if (grundy(childTuple) === 0) opts.push(m.type.toUpperCase() + ' ' + m.index);
       }
       this.optimal_moves.textContent = g === 0 ? 'N/A (P-position)' : (opts.length ? opts.join(' / ') : 'No winning moves found.');
+      // Move incentive min/max
+      let minInc = Infinity;
+      let maxInc = -Infinity;
+      for (const m of crimAllMoves(board)) {
+        const childTuple = crimChildTuple(board, m);
+        const inc = g - grundy(childTuple);
+        minInc = Math.min(minInc, inc);
+        maxInc = Math.max(maxInc, inc);
+      }
+      this.move_incentive.textContent = isFinite(minInc) ? `${minInc} / ${maxInc}` : 'N/A';
     }
     this.drawChart();
   }

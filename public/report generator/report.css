@@ -103,6 +103,11 @@ button:hover { filter: brightness(1.1); }
   gap: 16px;
 }
 
+.chart-container,
+#chart-wrapper {
+  margin-top: 24px;
+}
+
 .report-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);

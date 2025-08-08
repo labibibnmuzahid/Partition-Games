@@ -26,17 +26,96 @@ function crimGrundy(position) {
   return g;
 }
 
+// --- Additional CRIM metrics: Uptimality and Game Depth ---
+const crimUptMemo = new Map();
+const crimDepthMemo = new Map();
+
+function crimChildren(position) {
+  const posArray = JSON.parse(position); // sorted desc
+  const children = [];
+  const width = posArray.length > 0 ? posArray[0] : 0;
+  // Remove any row
+  for (let i = 0; i < posArray.length; i++) {
+    const nextPos = [...posArray];
+    nextPos.splice(i, 1);
+    children.push(JSON.stringify(nextPos.sort((a, b) => b - a)));
+  }
+  // Remove any column
+  for (let j = 0; j < width; j++) {
+    const nextPos = posArray.map(len => (len > j ? len - 1 : len)).filter(len => len > 0);
+    children.push(JSON.stringify(nextPos.sort((a, b) => b - a)));
+  }
+  return children;
+}
+
+function crimGetUptimality(position) {
+  if (position === '[]') return 0;
+  if (crimUptMemo.has(position)) return crimUptMemo.get(position);
+  const g = crimGrundy(position);
+  const childPositions = crimChildren(position);
+  let value;
+  if (g > 0) {
+    // Winning: choose a move to a P-position that minimizes opponent options
+    const winningUpts = childPositions
+      .map(p => (crimGrundy(p) === 0 ? crimGetUptimality(p) : Infinity));
+    value = 1 + Math.min(...winningUpts);
+  } else {
+    // Losing: assume opponent maximizes game length
+    const childUpts = childPositions.map(p => crimGetUptimality(p));
+    value = 1 + (childUpts.length ? Math.max(...childUpts) : -1);
+  }
+  crimUptMemo.set(position, value);
+  return value;
+}
+
+function crimGetGameDepth(position) {
+  if (position === '[]') return 0;
+  if (crimDepthMemo.has(position)) return crimDepthMemo.get(position);
+  const childPositions = crimChildren(position);
+  const childDepths = childPositions.map(p => crimGetGameDepth(p));
+  const value = 1 + (childDepths.length ? Math.max(...childDepths) : -1);
+  crimDepthMemo.set(position, value);
+  return value;
+}
+
 function crimPerformAnalysis(partition) {
   const pos = JSON.stringify([...partition].filter(n => n > 0).sort((a, b) => b - a));
   const g = crimGrundy(pos);
   const width = partition.length > 0 ? partition[0] : 0;
   const rowMoves = partition.length;
   const colMoves = width;
+  // Move Incentive (difference in g after any legal move): min/max
+  const moveIncentive = (() => {
+    let minInc = Infinity;
+    let maxInc = -Infinity;
+    const posArray = JSON.parse(pos);
+    // Row removals
+    for (let i = 0; i < posArray.length; i++) {
+      const nextPos = [...posArray];
+      nextPos.splice(i, 1);
+      const child = JSON.stringify(nextPos.sort((a, b) => b - a));
+      const inc = g - crimGrundy(child);
+      minInc = Math.min(minInc, inc);
+      maxInc = Math.max(maxInc, inc);
+    }
+    // Column removals
+    for (let j = 0; j < width; j++) {
+      const nextPos = posArray.map(len => (len > j ? len - 1 : len)).filter(len => len > 0);
+      const child = JSON.stringify(nextPos.sort((a, b) => b - a));
+      const inc = g - crimGrundy(child);
+      minInc = Math.min(minInc, inc);
+      maxInc = Math.max(maxInc, inc);
+    }
+    return isFinite(minInc) ? `${minInc} / ${maxInc}` : 'N/A';
+  })();
+
   return {
     gValue: g,
     pnStatus: g > 0 ? 'N-Position' : 'P-Position',
-    // For CRIM, uptimality/depth not implemented yet; omit in card when undefined
+    uptimality: crimGetUptimality(pos),
+    gameDepth: crimGetGameDepth(pos),
     reachableMoves: String(rowMoves + colMoves),
+    moveIncentive,
     optimalMoves: (() => {
       if (g === 0) return 'N/A (P-position)';
       // Try rows
@@ -97,7 +176,10 @@ function crimCreateReportCard(stateStr, analysis) {
       content += `<p><span class=\"label\">${label}:</span> <span class=\"value\">${value}</span></p>`;
     }
   };
+  addRow('Uptimality', analysis.uptimality);
+  addRow('Max Game Depth', analysis.gameDepth);
   addRow('Reachable Moves', analysis.reachableMoves);
+  addRow('Move Incentive (Min/Max)', analysis.moveIncentive);
   if (analysis.optimalMoves !== undefined && analysis.optimalMoves !== 'N/A') {
     content += `
       <div class="optimal-moves-container">
