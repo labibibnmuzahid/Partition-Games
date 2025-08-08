@@ -256,13 +256,19 @@ app.post('/api/game-records', async (req, res) => {
       : (typeof movesSequence === 'string' && movesSequence.trim().length)
         ? movesSequence.trim().split(/\s+/).length
         : 0;
-    const expectedNormalWinner = (movesCount % 2 === 1)
-      ? startPlayer
-      : (startPlayer === 'A' ? 'B' : 'A');
+    
+    // In normal play: last player to move wins
+    // If movesCount is odd, starter (A) made the last move and wins
+    // If movesCount is even, second player (B) made the last move and wins
+    const expectedNormalWinner = (movesCount % 2 === 1) ? startPlayer : (startPlayer === 'A' ? 'B' : 'A');
+    
+    // If actual winner differs from expected normal winner, it's misere
     const computedIsMisere = (gameOutcome === 'A' || gameOutcome === 'B')
       ? (gameOutcome !== expectedNormalWinner)
       : false;
-    const isMisereFinal = (typeof isMisere === 'boolean') ? isMisere : computedIsMisere;
+    
+    // Use explicit boolean if provided, otherwise use computed value
+    const isMisereFinal = (typeof isMisere === 'boolean' && isMisere === true) ? true : computedIsMisere;
 
     const { rows } = await pool.query(`
       INSERT INTO game_records (game_type, partition_data, timestamp_played, moves_sequence, game_outcome, is_misere)
