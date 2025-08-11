@@ -578,7 +578,7 @@ class CRIM_GUI{
           payload.winner,
           payload.gameStartTime,
           payload.moveContexts,
-          !!document.getElementById('misere-toggle')?.checked,
+          false, // Let server calculate based on parity
           'A'
         );
       }
