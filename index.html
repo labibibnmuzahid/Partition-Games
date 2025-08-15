@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -80,21 +81,235 @@
                 <h1>partition games</h1>
                 <p class="hero-quote">explore the world of combinatorial games with integer partitions</p>
             </div>
+=======
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>Partition Games | Rhodes College</title>  
+      
+    <!-- Console-style monospace fonts -->  
+    <link rel="preconnect" href="https://fonts.googleapis.com">  
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">  
+      
+    <!-- Inter Tight font -->  
+    <link rel="preconnect" href="https://fonts.googleapis.com">  
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">  
+  
+    <!-- MathJax for LaTeX rendering -->  
+    <script>  
+        MathJax = {  
+            tex: {  
+                inlineMath: [['$', '$'], ['\$', '\$']],  
+                displayMath: [['$$', '$$'], ['\$', '\$']]  
+            },  
+            svg: {  
+                fontCache: 'global'  
+            }  
+        };  
+    </script>  
+    <script type="text/javascript" id="MathJax-script" async  
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">  
+    </script>  
+  
+    <!-- Stylesheet -->    
+    <link rel="stylesheet" href="style.css">    
+</head>  
+  
+<body>  
+    <header>  
+        <div class="container">  
+            <div class="header-content">  
+                <a href="index.html" class="logo">partition-games</a>  
+                <nav>  
+                    <button id="about-btn" class="nav-button" aria-expanded="false" aria-haspopup="true">about</button>  
+                    <a href="developers.html">developers</a>  
+                    <a href="wiki.html">wiki</a>  
+                    <a href="https://github.com/ScarletrRaptor8/Partition-Games" target="_blank">github</a>  
+                    <button id="theme-toggle" class="theme-toggle nav-button" aria-label="Toggle theme">  
+                        <svg class="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">  
+                            <circle cx="12" cy="12" r="5"/>  
+                            <line x1="12" y1="1" x2="12" y2="3"/>  
+                            <line x1="12" y1="21" x2="12" y2="23"/>  
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>  
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>  
+                            <line x1="1" y1="12" x2="3" y2="12"/>  
+                            <line x1="21" y1="12" x2="23" y2="12"/>  
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>  
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>  
+                        </svg>  
+                        [dark]  
+                    </button>  
+                </nav>  
+                  
+                <div id="about-popover" class="about-popover hidden">  
+                    <div class="about-popover-content">  
+                        <button id="close-about" class="close-btn">&times;</button>  
+                        <h3>About</h3>  
+                        <p><strong>Rhodes College Summer Fellowship Program '25</strong></p>  
+                        <p>This project is being developed under the supervision of <a href="https://www.rhodes.edu/bio/eric-gottlieb" target="_blank">Professor Gottlieb</a>. Soumtiro and Aayan are crafting this web application to aid Prof. Gottlieb and his team's research on combinatorial games, making these mathematical concepts approachable to everyone.</p>  
+                    </div>  
+                </div>   
+            </div>  
+        </div>  
+    </header>  
+  
+    <main>  
+        <div class="container">  
+            <div class="hero">  
+                <h1>partition games</h1>  
+                <p class="hero-quote">explore the world of combinatorial games with integer partitions</p>  
+            </div>  
+  
+            <h2 class="section-title">choose your game</h2>  
+              
+            <div class="games-grid">  
+                <div class="game-card">  
+                    <h3>LCTR</h3>  
+                    <p>Remove the left column or top row.</p>  
+                    <div class="game-buttons">  
+                        <a href="lctr_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/lctr/lctrdocu.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>CRIM</h3>  
+                    <p>Remove any column or row. The remaining pieces are merged.</p>  
+                    <div class="game-buttons">  
+                        <a href="crim_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/crim/crim.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>CRIS</h3>  
+                    <p>Remove any column or row. The remaining pieces remain separated.</p>  
+                    <div class="game-buttons">  
+                        <a href="cris_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/cris/crisdocu.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>Sato-Welter</h3>  
+                    <p>Remove the hook rooted at any square. The remaining pieces are merged. A hook rooted at a square is that square together with the squares directly below it and directly to the right of it.</p>  
+                    <div class="game-buttons">  
+                        <a href="sato_welter_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/Sato-Walter/satowalter.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>RIT</h3>  
+                    <p>Remove a positive number of squares from the terminus of any row, provided the result is still a Young diagram.</p>  
+                    <div class="game-buttons">  
+                        <a href="rit_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/rit/rit.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>Corner</h3>  
+                    <p>Remove any nonempty set of corners. A corner is a square that is both at the end of a row and the bottom of a column.</p>  
+                    <div class="game-buttons">  
+                        <a href="corner_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/corner/corner.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>Anticorner</h3>  
+                    <p>Remove any anticorner. An anticorner is the rightmost column, the bottommost row, or a set of squares in the shape of an L that connects two adjacent corners.</p>  
+                    <div class="game-buttons">  
+                        <a href="anticorners_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/anticorner/anticorner.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>Consecutive Corner</h3>  
+                    <p>Remove any nonempty set of consecutive corners.</p>  
+                    <div class="game-buttons">  
+                        <a href="continuous_corner_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/continuous_corner/continuous_corner.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>CRPM</h3>  
+                    <p>The row player can remove any row and the column player can remove any column. The remaining pieces are merged.</p>  
+                    <div class="game-buttons">  
+                        <a href="crpm_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/crpm/crpm.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>CRPS</h3>  
+                    <p>The row player can remove any row and the column player can remove any column. The remaining pieces remain separated.</p>  
+                    <div class="game-buttons">  
+                        <a href="crps_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/crps/crps.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>CRIT</h3>  
+                    <p>Remove a positive number of squares from the terminus of any row or any column, provided that the result is still a Young diagram.</p>  
+                    <div class="game-buttons">  
+                        <a href="crit_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/crit/crit.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+  
+                <div class="game-card">  
+                    <h3>SICC</h3>  
+                    <p>Remove a nonempty set of consecutive corners that include either the top right corner or the bottom left corner (or both).</p>  
+                    <div class="game-buttons">  
+                        <a href="scc_page.html" class="play-button">play now</a>  
+                        <a href="public/wikidocus/sicc/sicc.html" class="rules-link">rules</a>  
+                    </div>  
+                </div>  
+            </div>  
+  
+            <div class="multiplayer-section">  
+                <div class="container">  
+                    <div class="multiplayer-content">  
+                        <h2>Multiplayer</h2>  
+                        <p>Challenge friends in real-time multiplayer matches. Connect instantly through room codes and experience competitive partition gaming.</p>  
+                        <a href="corner_multiplayer.html" class="multiplayer-button">start multiplayer</a>  
+                    </div>  
+                </div>  
+            </div>  
+        </div>  
+    </main>  
+  
+    <footer>  
+        <div class="container">  
+            <div class="footer-content">  
+                <div>© 2024 Partition Games — Rhodes College</div>  
+                <div class="footer-links">  
+                    <a href="developers.html">developers</a>  
+                    <a href="wiki.html">documentation</a>  
+                    <a href="https://github.com/ScarletrRaptor8/Partition-Games" target="_blank">source</a>  
+                </div>  
+            </div>  
+        </div>  
+    </footer>  
+      
+    <script src="script.js"></script>  
+</body>  
+</html>  
+>>>>>>> Stashed changes
 
 
 
-            <h2 class="section-title">choose your game</h2>
-            
-            <div class="games-grid">
-                <div class="game-card">
-                    <h3>LCTR</h3>
-                    <p>When it's their turn, the user can remove either the left column, or the top row.</p>
-                    <div class="game-buttons">
-                        <a href="lctr_page.html" class="play-button">play now</a>
-                        <a href="public/wikidocus/lctr/lctrdocu.html" class="rules-link">rules</a>
-                    </div>
-                </div>
 
+<<<<<<< Updated upstream
                 <div class="game-card">
                     <h3>CRIM</h3>
                     <p>The user may remove any row or column - but the two divided parts would get merged after each move.</p>
@@ -223,3 +438,5 @@
     <script src="script.js"></script>
 </body>
 </html>
+=======
+>>>>>>> Stashed changes
