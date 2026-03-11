@@ -75,8 +75,10 @@ If you get connection errors:
 
 The current .env file should contain:
 ```
-DATABASE_URL=postgresql://neondb_owner:npg_jlpYFy7a8ube@ep-wandering-snow-ae8qkeig-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-JWT_SECRET=anticorners-jwt-secret-key-2024
+DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<NEON_HOST>/<DB_NAME>?sslmode=require&channel_binding=require
+JWT_SECRET=<your-secure-random-jwt-secret>
 NODE_ENV=development
 PORT=3001
 ```
+
+> **Note:** Get your `DATABASE_URL` from your Neon dashboard under "Connection Details". Generate a strong random `JWT_SECRET` (e.g. `openssl rand -base64 32`).

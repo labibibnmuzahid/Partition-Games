@@ -26,11 +26,13 @@ Netlify Website (Frontend) → Render Server (API) → Neon Database (Storage)
 
 Add these in Render dashboard under "Environment":
 ```
-DATABASE_URL=postgresql://neondb_owner:npg_jlpYFy7a8ube@ep-wandering-snow-ae8qkeig-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-JWT_SECRET=partition-games-jwt-secret-2024-secure-key
+DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<NEON_HOST>/<DB_NAME>?sslmode=require&channel_binding=require
+JWT_SECRET=<your-secure-random-jwt-secret>
 NODE_ENV=production
 PORT=10000
 ```
+
+> **Note:** Get your `DATABASE_URL` from your Neon dashboard under "Connection Details". Generate a strong random `JWT_SECRET` (e.g. `openssl rand -base64 32`).
 
 ### 3. Update Configuration
 

@@ -4,10 +4,10 @@ To set up the database connection, create a `.env` file in the server directory 
 
 ```bash
 # Database Configuration
-DATABASE_URL=postgresql://neondb_owner:npg_jlpYFy7a8ube@ep-wandering-snow-ae8qkeig-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<NEON_HOST>/<DB_NAME>?sslmode=require&channel_binding=require
 
 # JWT Secret for authentication
-JWT_SECRET=your-super-secret-jwt-key-here
+JWT_SECRET=<your-secure-random-jwt-secret>
 
 # Environment
 NODE_ENV=development
@@ -15,6 +15,8 @@ NODE_ENV=development
 # Server Port
 PORT=3001
 ```
+
+> **Note:** Get your `DATABASE_URL` from your Neon dashboard under "Connection Details". Generate a strong random `JWT_SECRET` (e.g. `openssl rand -base64 32`).
 
 ## Setup Steps:
 
