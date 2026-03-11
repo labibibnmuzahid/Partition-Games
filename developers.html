@@ -13,125 +13,10 @@
       rel="stylesheet"
     />
 
+    <!-- Shared site styles -->
+    <link rel="stylesheet" href="style.css" />
+
     <style>
-      :root {
-        --orange: #ff6b35;
-        --orange-light: #ff8757;
-        --orange-dark: #e55a2b;
-        --white: #ffffff;
-        --off-white: #fafafa;
-        --gray-light: #f5f5f5;
-        --gray: #666666;
-        --gray-dark: #333333;
-        --black: #000000;
-      }
-
-      [data-theme="dark"] {
-        --orange: #ff8757;
-        --orange-light: #ffb08a;
-        --orange-dark: #ff6b35;
-        --white: #050506;
-        --off-white: #0c0d0f;
-        --gray-light: #18191b;
-        --gray: #b0b3b8;
-        --gray-dark: #e4e6eb;
-        --black: #000000;
-      }
-
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: "JetBrains Mono", "Source Code Pro", "Monaco", "Menlo",
-          monospace;
-        background-color: var(--white);
-        color: var(--gray-dark);
-        line-height: 1.6;
-        font-size: 14px;
-      }
-
-      .container {
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 0 20px;
-      }
-
-      /* Header */
-      header {
-        border-bottom: 1px solid var(--gray-light);
-        padding: 20px 0;
-        background-color: var(--white);
-      }
-
-      .header-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-      }
-
-      .logo {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--orange);
-        text-decoration: none;
-      }
-
-      .logo::before {
-        content: "~/";
-        color: var(--gray);
-      }
-
-      .back-link {
-        color: var(--gray-dark);
-        text-decoration: none;
-        font-weight: 400;
-        transition: color 0.2s ease;
-      }
-
-      .back-link:hover {
-        color: var(--orange);
-      }
-
-      .back-link::before {
-        content: "← ";
-        color: var(--gray);
-      }
-
-      .header-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .theme-toggle-btn {
-        font-family: inherit;
-        font-size: 12px;
-        padding: 6px 12px;
-        border-radius: 3px;
-        border: 1px solid var(--gray-light);
-        background-color: transparent;
-        color: var(--gray-dark);
-        cursor: pointer;
-        text-transform: lowercase;
-        transition: background-color 0.2s ease, color 0.2s ease,
-          border-color 0.2s ease;
-      }
-
-      .theme-toggle-btn:hover {
-        background-color: var(--gray-light);
-        color: var(--orange);
-        border-color: var(--orange);
-      }
-
-      /* Main Content */
-      main {
-        padding: 60px 0;
-      }
-
       .page-title {
         text-align: center;
         margin-bottom: 20px;
@@ -277,17 +162,8 @@
         line-height: 1.6;
       }
 
-      /* Footer */
-      footer {
-        border-top: 1px solid var(--gray-light);
-        padding: 30px 0;
-        background-color: var(--off-white);
-      }
-
       .footer-content {
         text-align: center;
-        font-size: 12px;
-        color: var(--gray);
       }
 
       /* Logos Section */
@@ -331,17 +207,43 @@
       <div class="container">
         <div class="header-content">
           <a href="index.html" class="logo">partition-games</a>
-          <div class="header-actions">
-            <button
-              id="theme-toggle-btn"
-              class="theme-toggle-btn"
-              type="button"
-              aria-label="Toggle dark mode"
+          <nav>
+            <a href="index.html">home</a>
+            <a href="multiplayer_landing.html">multiplayer</a>
+            <a href="developers.html">developers</a>
+            <a href="wiki.html">wiki</a>
+            <a
+              href="https://github.com/ScarletrRaptor8/Partition-Games"
+              target="_blank"
+              >github</a
             >
-              dark mode
+            <button
+              id="dev-theme-toggle"
+              class="theme-toggle nav-button"
+              aria-label="Toggle theme"
+            >
+              <svg
+                class="theme-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+              [dark]
             </button>
-            <a href="index.html" class="back-link">back to home</a>
-          </div>
+          </nav>
         </div>
       </div>
     </header>
@@ -433,37 +335,55 @@
       </div>
     </footer>
 
+    <script src="script.js"></script>
     <script>
       (function () {
-        const storageKey = "partition-games-theme";
-        const root = document.documentElement;
-        const toggleBtn = document.getElementById("theme-toggle-btn");
+        const toggle = document.getElementById("dev-theme-toggle");
+        if (!toggle) return;
 
-        if (!toggleBtn) return;
+        const sunIcon = `
+          <svg class="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        `;
 
-        const applyTheme = (theme) => {
+        const moonIcon = `
+          <svg class="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        `;
+
+        function applyTheme(theme) {
           if (theme === "dark") {
-            root.setAttribute("data-theme", "dark");
-            toggleBtn.textContent = "light mode";
+            document.documentElement.setAttribute("data-theme", "dark");
+            toggle.innerHTML = sunIcon + "[light]";
+            toggle.setAttribute("aria-label", "Switch to light mode");
           } else {
-            root.removeAttribute("data-theme");
-            toggleBtn.textContent = "dark mode";
+            document.documentElement.removeAttribute("data-theme");
+            toggle.innerHTML = moonIcon + "[dark]";
+            toggle.setAttribute("aria-label", "Switch to dark mode");
           }
-        };
+          localStorage.setItem("theme", theme);
+        }
 
-        const savedTheme = localStorage.getItem(storageKey);
-        const prefersDark =
-          window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const saved = localStorage.getItem("theme") || "light";
+        applyTheme(saved);
 
-        const initialTheme = savedTheme || (prefersDark ? "dark" : "light");
-        applyTheme(initialTheme);
-
-        toggleBtn.addEventListener("click", () => {
-          const isDark = root.getAttribute("data-theme") === "dark";
-          const nextTheme = isDark ? "light" : "dark";
-          applyTheme(nextTheme);
-          localStorage.setItem(storageKey, nextTheme);
+        toggle.addEventListener("click", () => {
+          const current =
+            document.documentElement.getAttribute("data-theme") === "dark"
+              ? "dark"
+              : "light";
+          const next = current === "light" ? "dark" : "light";
+          applyTheme(next);
         });
       })();
     </script>
