@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Corner King</title>
+
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$', '$']],
+    processEscapes: true
+  },
+  svg: { fontCache: 'global' }
+};
+</script>
+
+<script id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+
+<style>
+body          { font-family: "Arial", Times, serif;
+                margin: 2em 8%; line-height: 1.35;}
+h1            { text-align: center; margin-bottom: 0.3em;}
+.gamebox      { border: 3px solid #6a37a8; border-radius: 10px;
+                padding: 1.0em 1.3em; position: relative;
+                background: #f9f6ff; margin: 1.7em 0 1.5em 0;}
+.gamebox:before{ content:"Game statement";
+                 position:absolute; top:-0.9em; left:1em;
+                 background:#f9f6ff; padding:0 0.4em;
+                 color:#6a37a8; font-weight:bold;}
+</style>
+</head>
+<body>
+
+<h1>Corner King</h1>
+<h2 style="text-align: center;">Integer Partition Combinatorial Game</h2>
+
+<div class="gamebox">
+    Corner King is a Corner variant. Players remove legal corner subsets, while the
+    game introduces additional king-based strategic restrictions for advanced play.
+    The player who makes the last legal move wins.
+</div>
+
+<h2>More</h2>
+<p>
+    Corner King documentation is currently being expanded. For research and rules
+    details, contact <a href="https://www.rhodes.edu/bio/eric-gottlieb">Prof. Gottlieb</a>.
+</p>
+
+</body>
+</html>
