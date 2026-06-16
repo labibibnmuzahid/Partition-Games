@@ -1,6 +1,14 @@
-# Partition Games
+# Partition Games 3D
 
-A comprehensive web application featuring **12 combinatorial partition games**, built to support research in combinatorial game theory at **Rhodes College**.
+A comprehensive web application featuring **12 combinatorial partition games**, built to support research in combinatorial game theory at **Rhodes College** — now with an interactive **3D, motion-driven** front end.
+
+> **What's new — the 3D redesign**
+> - **Interactive 3D hero** — the landing page renders a partition as a real-time WebGL "corner" of stacked cubes (Three.js) that reacts to your cursor.
+> - **Dimensional game boards** — every game's tiles are now extruded 3D blocks that lift on hover and topple as they're removed (visual-only; the game engines are untouched).
+> - **Motion everywhere** — scroll-progress bar, scroll-triggered reveals, hero parallax, 3D tilt-on-hover game cards, and a dark-first glass aesthetic with light-mode support.
+> - **Filterable catalogue** — browse all 12 games or filter by impartial / partizan family.
+>
+> Key files: [`index.html`](index.html), [`assets/css/landing.css`](assets/css/landing.css), [`assets/js/landing.js`](assets/js/landing.js), and the shared board upgrade in [`assets/css/unified_game_styles.css`](assets/css/unified_game_styles.css).
 
 Developed under the **Rhodes College Summer Fellowship '25** by [Soumitro](mailto:dwiso-28@rhodes.edu) and [Aayan](mailto:debaa-28@rhodes.edu), supervised by [Prof. Eric Gottlieb](https://www.rhodes.edu/bio/eric-gottlieb).
 
