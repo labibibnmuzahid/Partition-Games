@@ -112,9 +112,10 @@
                         Each game is a different rule for breaking a partition apart. Hover a card to feel the depth — then play.
                     </p>
                     <div class="filter-bar reveal" data-reveal data-delay="3" role="tablist" aria-label="Filter games">
-                        <button class="filter-chip is-active" data-filter="all" role="tab" aria-selected="true">all <span>12</span></button>
+                        <button class="filter-chip is-active" data-filter="all" role="tab" aria-selected="true">all <span>19</span></button>
                         <button class="filter-chip" data-filter="impartial" role="tab" aria-selected="false">impartial <span>10</span></button>
                         <button class="filter-chip" data-filter="partizan" role="tab" aria-selected="false">partizan <span>2</span></button>
+                        <button class="filter-chip" data-filter="chess" role="tab" aria-selected="false">iChess <span>7</span></button>
                     </div>
                 </header>
 
@@ -265,6 +266,84 @@
                         <div class="card-actions">
                             <a href="games/crps/crps_page.html" class="play-link">play<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                             <a href="wiki/crps/crps.html" class="rules-link">rules</a>
+                        </div>
+                    </article>
+
+                    <!-- iChess — impartial chess games (arXiv:2501.14640) -->
+                    <article class="game-card" data-category="chess" data-reveal>
+                        <div class="card-glow"></div>
+                        <div class="card-top"><span class="card-tag">iChess</span><div class="card-piece" aria-hidden="true">♜</div></div>
+                        <h3>Rook</h3>
+                        <p class="card-full">Two-pile Nim</p>
+                        <p class="card-desc">Slide the rook left or down toward the corner. Equivalent to Nim — Grundy value is column XOR row.</p>
+                        <div class="card-actions">
+                            <a href="games/rook/rook_page.html" class="play-link">play<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                        </div>
+                    </article>
+
+                    <article class="game-card" data-category="chess" data-reveal>
+                        <div class="card-glow"></div>
+                        <div class="card-top"><span class="card-tag">iChess</span><div class="card-piece" aria-hidden="true">♝</div></div>
+                        <h3>Bishop</h3>
+                        <p class="card-full">One-pile Nim</p>
+                        <p class="card-desc">A lone bishop rides one diagonal toward the corner — a single Nim heap of size min(column, row).</p>
+                        <div class="card-actions">
+                            <a href="games/bishop/bishop_page.html" class="play-link">play<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                        </div>
+                    </article>
+
+                    <article class="game-card" data-category="chess" data-reveal>
+                        <div class="card-glow"></div>
+                        <div class="card-top"><span class="card-tag">iChess</span><div class="card-piece" aria-hidden="true">♛</div></div>
+                        <h3>Queen</h3>
+                        <p class="card-full">Wythoff's game</p>
+                        <p class="card-desc">Rook + bishop moves toward the corner — exactly Wythoff's game, with golden-ratio losing positions.</p>
+                        <div class="card-actions">
+                            <a href="games/queen/queen_page.html" class="play-link">play<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                        </div>
+                    </article>
+
+                    <article class="game-card" data-category="chess" data-reveal>
+                        <div class="card-glow"></div>
+                        <div class="card-top"><span class="card-tag">iChess</span><div class="card-piece" aria-hidden="true">♚</div></div>
+                        <h3>King</h3>
+                        <p class="card-full">One-step corner game</p>
+                        <p class="card-desc">The king steps one square left, down, or down-left. Safe squares are where both coordinates are even.</p>
+                        <div class="card-actions">
+                            <a href="games/king/king_page.html" class="play-link">play<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                        </div>
+                    </article>
+
+                    <article class="game-card" data-category="chess" data-reveal>
+                        <div class="card-glow"></div>
+                        <div class="card-top"><span class="card-tag">iChess</span><div class="card-piece" aria-hidden="true">♞</div></div>
+                        <h3>Knight</h3>
+                        <p class="card-full">Corner the Knight</p>
+                        <p class="card-desc">L-shaped leaps that close on the corner. No closed form — perfect play via memoised Grundy values.</p>
+                        <div class="card-actions">
+                            <a href="games/knight/knight_page.html" class="play-link">play<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                        </div>
+                    </article>
+
+                    <article class="game-card" data-category="chess" data-reveal>
+                        <div class="card-glow"></div>
+                        <div class="card-top"><span class="card-tag">iChess</span><div class="card-piece" aria-hidden="true">♟</div></div>
+                        <h3>Pawn</h3>
+                        <p class="card-full">Marching game</p>
+                        <p class="card-desc">The pawn drops one rank each move (straight or diagonal). Control the row parity to win.</p>
+                        <div class="card-actions">
+                            <a href="games/pawn/pawn_page.html" class="play-link">play<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                        </div>
+                    </article>
+
+                    <article class="game-card" data-category="chess" data-reveal>
+                        <div class="card-glow"></div>
+                        <div class="card-top"><span class="card-tag">iChess</span><div class="card-piece" aria-hidden="true">✦</div></div>
+                        <h3>General</h3>
+                        <p class="card-full">King + Knight</p>
+                        <p class="card-desc">A king that can also leap like a knight — a richer combined game solved by memoised recursion.</p>
+                        <div class="card-actions">
+                            <a href="games/general/general_page.html" class="play-link">play<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                         </div>
                     </article>
                 </div>

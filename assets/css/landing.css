@@ -524,6 +524,17 @@ section { position: relative; z-index: 1; }
 .is-partizan .iso-cell { background: color-mix(in srgb, var(--cyan) 30%, transparent); border-color: var(--cyan); }
 .is-partizan .iso-cell::after { background: color-mix(in srgb, var(--cyan) 55%, transparent); border-color: var(--cyan); }
 
+/* chess piece icon on iChess cards */
+.card-piece {
+    font-size: 2.6rem;
+    line-height: 1;
+    color: var(--orange);
+    filter: drop-shadow(0 5px 12px color-mix(in srgb, var(--orange) 40%, transparent));
+    transition: transform 0.4s var(--ease);
+    transform: translateZ(24px);
+}
+.game-card:hover .card-piece { transform: translateZ(24px) translateY(-3px) scale(1.1) rotate(-5deg); }
+
 .game-card h3 {
     font-family: var(--font-display);
     font-weight: 700;
