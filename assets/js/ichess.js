@@ -13,98 +13,84 @@
 (function () {
     "use strict";
 
-    /* ---------------- move generators (toward the corner) ---------------- */
-    function rookMoves(c, r) {
+    /* ---------------- board = arbitrary partition (Young diagram) ----------------
+       rows[r] = width of row r; rows non-increasing; rows[0] is the BOTTOM row
+       (widest). A cell (c, r) exists iff 0<=r<rows.length and 0<=c<rows[r]. The
+       corner is (0,0); the diagram is downward-closed toward it, so a rectangle
+       is just the special case rows = [n, n, …, n]. Sliding pieces stop at the
+       first cell that is off the partition, so play is confined to the shape. */
+    function inBoard(c, r, rows) { return r >= 0 && r < rows.length && c >= 0 && c < rows[r]; }
+
+    function rookMoves(c, r, rows) {
         const m = [];
-        for (let k = 1; k <= c; k++) m.push([c - k, r]);   // left
-        for (let k = 1; k <= r; k++) m.push([c, r - k]);   // down
+        for (let k = 1; inBoard(c - k, r, rows); k++) m.push([c - k, r]);   // left
+        for (let k = 1; inBoard(c, r - k, rows); k++) m.push([c, r - k]);   // down
         return m;
     }
-    function bishopMoves(c, r) {
+    function bishopMoves(c, r, rows) {
         const m = [];
-        const n = Math.min(c, r);
-        for (let k = 1; k <= n; k++) m.push([c - k, r - k]); // down-left
+        for (let k = 1; inBoard(c - k, r - k, rows); k++) m.push([c - k, r - k]); // down-left
         return m;
     }
-    function queenMoves(c, r) { return rookMoves(c, r).concat(bishopMoves(c, r)); }
-    function kingMoves(c, r) {
+    function queenMoves(c, r, rows) { return rookMoves(c, r, rows).concat(bishopMoves(c, r, rows)); }
+    function stepMoves(c, r, rows, deltas) {
         const m = [];
-        if (c > 0) m.push([c - 1, r]);
-        if (r > 0) m.push([c, r - 1]);
-        if (c > 0 && r > 0) m.push([c - 1, r - 1]);
+        for (const [dc, dr] of deltas) if (inBoard(c + dc, r + dr, rows)) m.push([c + dc, r + dr]);
         return m;
     }
+    const KING_D = [[-1, 0], [0, -1], [-1, -1]];
     // Corner-the-Knight: knight deltas whose column+row sum strictly decreases.
     const KNIGHT_D = [[-1, -2], [-2, -1], [-2, 1], [1, -2]];
-    function knightMoves(c, r, W, H) {
-        const m = [];
-        for (const [dc, dr] of KNIGHT_D) {
-            const nc = c + dc, nr = r + dr;
-            if (nc >= 0 && nr >= 0 && nc < W && nr < H) m.push([nc, nr]);
-        }
-        return m;
-    }
-    // Pawn marches toward row 0 (straight or one diagonal step).
-    function pawnMoves(c, r, W) {
-        if (r === 0) return [];
-        const m = [[c, r - 1]];
-        if (c > 0) m.push([c - 1, r - 1]);
-        if (c < W - 1) m.push([c + 1, r - 1]);
-        return m;
-    }
-    // "General" = King + Knight combined (a richer game).
-    function generalMoves(c, r, W, H) { return kingMoves(c, r).concat(knightMoves(c, r, W, H)); }
+    const PAWN_D = [[0, -1], [-1, -1], [1, -1]];
+    function kingMoves(c, r, rows) { return stepMoves(c, r, rows, KING_D); }
+    function knightMoves(c, r, rows) { return stepMoves(c, r, rows, KNIGHT_D); }
+    function pawnMoves(c, r, rows) { return stepMoves(c, r, rows, PAWN_D); }
+    function generalMoves(c, r, rows) { return kingMoves(c, r, rows).concat(knightMoves(c, r, rows)); }
 
     const PIECES = {
-        rook:    { name: "Rook",    glyph: "♜", family: "line",   gen: (c, r) => rookMoves(c, r),
+        rook:    { name: "Rook",    glyph: "♜", family: "line", gen: rookMoves,
                    tagline: "Slides left or down toward the corner.",
-                   theory: "The Rook game is <strong>two-pile Nim</strong>: the column and row distances to the corner are the two piles. Its Grundy value is exactly <strong>column XOR row</strong>.",
-                   win: "Move to a position where <strong>(column XOR row) = 0</strong> — i.e. make the two distances equal." },
-        bishop:  { name: "Bishop",  family: "line", gen: (c, r) => bishopMoves(c, r), glyph: "♝",
+                   theory: "On a rectangle the Rook game is <strong>two-pile Nim</strong> with Grundy value <strong>column XOR row</strong>; on a partition the engine confines the slides to the Young diagram and recomputes Grundy values directly.",
+                   win: "Move to a position with <strong>Grundy value 0</strong> (on a full board, column XOR row = 0)." },
+        bishop:  { name: "Bishop",  glyph: "♝", family: "line", gen: bishopMoves,
                    tagline: "Slides down-left along its diagonal.",
-                   theory: "A lone Bishop rides a single diagonal, so it is a <strong>one-pile Nim</strong> heap of size min(column, row). Grundy value = <strong>min(column, row)</strong>.",
-                   win: "Reach the edge of the board on your move; whoever is forced off-diagonal first loses the tempo." },
-        queen:   { name: "Queen",   family: "line", gen: (c, r) => queenMoves(c, r), glyph: "♛",
+                   theory: "A lone Bishop rides one diagonal — a <strong>single Nim heap</strong> of length min(column, row) on a rectangle. On a partition the diagonal stops at the edge of the diagram.",
+                   win: "Force your opponent off the diagonal first — leave a <strong>Grundy-0</strong> position." },
+        queen:   { name: "Queen",   glyph: "♛", family: "line", gen: queenMoves,
                    tagline: "Rook + Bishop moves toward the corner.",
-                   theory: "The Queen game is exactly <strong>Wythoff’s game</strong>. Its losing positions are the Beatty pairs ⌊nφ⌋, ⌊nφ²⌋ (φ = the golden ratio); the engine finds them by computing Grundy values directly.",
-                   win: "Move to a Wythoff <strong>P-position</strong> (Grundy 0) — e.g. (1,2), (3,5), (4,7)…" },
-        king:    { name: "King",    family: "step", gen: (c, r) => kingMoves(c, r), glyph: "♚",
+                   theory: "On a rectangle the Queen game is exactly <strong>Wythoff’s game</strong> (golden-ratio losing positions). On a partition the engine computes Grundy values over the diagram’s cells.",
+                   win: "Move to a <strong>Grundy-0</strong> position (a Wythoff P-position on a full board)." },
+        king:    { name: "King",    glyph: "♚", family: "step", gen: kingMoves,
                    tagline: "One step left, down, or down-left.",
-                   theory: "The King steps one square toward the corner. Its Grundy values fall into a simple period-2 pattern that the engine computes by recursion.",
-                   win: "Leave your opponent on a <strong>Grundy-0</strong> square; with the King these are the squares where column and row are both even." },
-        knight:  { name: "Knight",  family: "leap", gen: (c, r, W, H) => knightMoves(c, r, W, H), glyph: "♞",
+                   theory: "The King steps one cell toward the corner. On a rectangle the safe squares are where column and row are both even; on a partition the engine recomputes them by recursion.",
+                   win: "Leave your opponent on a <strong>Grundy-0</strong> cell." },
+        knight:  { name: "Knight",  glyph: "♞", family: "leap", gen: knightMoves,
                    tagline: "L-shaped leaps that close on the corner.",
-                   theory: "“Corner the Knight” — only the knight leaps whose column+row strictly decrease are allowed, so the game is finite. There is no tidy closed form, so the engine computes <strong>Grundy values by memoised recursion</strong>.",
-                   win: "Hand your opponent a <strong>Grundy-0</strong> square; the safe squares form an irregular lattice the engine highlights in analysis mode." },
-        pawn:    { name: "Pawn",    family: "march", gen: (c, r, W) => pawnMoves(c, r, W), glyph: "♟",
+                   theory: "“Corner the Knight” — only the knight leaps whose column+row strictly decrease are legal (and only onto cells of the partition), so the game is finite. No closed form, so the engine computes <strong>Grundy values by memoised recursion</strong>.",
+                   win: "Hand your opponent a <strong>Grundy-0</strong> cell; analysis mode highlights the safe ones." },
+        pawn:    { name: "Pawn",    glyph: "♟", family: "march", gen: pawnMoves,
                    tagline: "Marches down one rank (straight or diagonal).",
-                   theory: "The Pawn always drops one rank, so the row counts down deterministically while the column drifts. The engine evaluates the resulting tree with <strong>Grundy values</strong>.",
-                   win: "Control the <strong>parity of the row</strong> while steering the column so your opponent runs out of squares first." },
-        general: { name: "General", family: "leap", gen: (c, r, W, H) => generalMoves(c, r, W, H), glyph: "✦",
+                   theory: "The Pawn always drops one rank — onto cells that exist in the partition — while the column drifts. The engine evaluates the tree with <strong>Grundy values</strong>.",
+                   win: "Control the <strong>parity of the row</strong> while steering the column so your opponent runs out of cells first." },
+        general: { name: "General", glyph: "✦", family: "leap", gen: generalMoves,
                    tagline: "A King that can also leap like a Knight.",
-                   theory: "The General combines <strong>King and Knight</strong> moves — a richer game with no closed form, solved by <strong>memoised Grundy recursion</strong>.",
-                   win: "As always: move to a <strong>Grundy-0</strong> position and keep returning your opponent to one." }
+                   theory: "The General combines <strong>King and Knight</strong> moves — a richer game with no closed form, solved by <strong>memoised Grundy recursion</strong> over the partition.",
+                   win: "Move to a <strong>Grundy-0</strong> position and keep returning your opponent to one." }
     };
 
-    function legalMoves(piece, c, r, W, H) {
-        const out = [];
-        for (const mv of PIECES[piece].gen(c, r, W, H)) {
-            if (mv[0] >= 0 && mv[1] >= 0 && mv[0] < W && mv[1] < H) out.push(mv);
-        }
-        return out;
-    }
+    function legalMoves(piece, c, r, rows) { return PIECES[piece].gen(c, r, rows); }
 
-    /* ---------------- Sprague–Grundy (normal play) ---------------- */
-    function makeSolver(piece, W, H) {
+    /* ---------------- Sprague–Grundy over the partition's cells ---------------- */
+    function makeSolver(piece, rows) {
         const gMemo = new Map();   // normal-play Grundy value
         const mMemo = new Map();   // misère: does the player to move win?
-        function key(c, r) { return c * H + r; }
+        function key(c, r) { return c + "," + r; }
 
         function grundy(c, r) {
             const k = key(c, r);
             if (gMemo.has(k)) return gMemo.get(k);
             const seen = new Set();
-            for (const [nc, nr] of legalMoves(piece, c, r, W, H)) seen.add(grundy(nc, nr));
+            for (const [nc, nr] of legalMoves(piece, c, r, rows)) seen.add(grundy(nc, nr));
             let mex = 0; while (seen.has(mex)) mex++;
             gMemo.set(k, mex);
             return mex;
@@ -113,27 +99,24 @@
         function misereWin(c, r) {
             const k = key(c, r);
             if (mMemo.has(k)) return mMemo.get(k);
-            const moves = legalMoves(piece, c, r, W, H);
+            const moves = legalMoves(piece, c, r, rows);
             let res;
             if (moves.length === 0) res = true;
             else { res = false; for (const [nc, nr] of moves) if (!misereWin(nc, nr)) { res = true; break; } }
             mMemo.set(k, res);
             return res;
         }
-        return { grundy, misereWin, legal: (c, r) => legalMoves(piece, c, r, W, H) };
+        return { grundy, misereWin, legal: (c, r) => legalMoves(piece, c, r, rows) };
     }
 
     /* ---------------- AI: perfect play with a difficulty dial ---------------- */
     // returns { move:[c,r]|null, winning:boolean }
-    function chooseMove(solver, piece, c, r, W, H, mode, difficulty) {
+    function chooseMove(solver, c, r, mode, difficulty) {
         const moves = solver.legal(c, r);
         if (moves.length === 0) return { move: null, winning: false };
-        let best;
-        if (mode === "misere") {
-            best = moves.filter(([nc, nr]) => !solver.misereWin(nc, nr));   // leave opponent losing
-        } else {
-            best = moves.filter(([nc, nr]) => solver.grundy(nc, nr) === 0);  // leave opponent Grundy-0
-        }
+        const best = (mode === "misere")
+            ? moves.filter(([nc, nr]) => !solver.misereWin(nc, nr))   // leave opponent losing
+            : moves.filter(([nc, nr]) => solver.grundy(nc, nr) === 0); // leave opponent Grundy-0
         const winning = best.length > 0;
         const pool = winning ? best : moves;            // if losing, any move (stall)
         const playOptimal = (Math.random() * 100) <= difficulty;
@@ -142,9 +125,38 @@
         return { move: pick, winning };
     }
 
+    /* ---------------- partition helpers ---------------- */
+    function parsePartition(str) {
+        let r = (str || "").trim().split(/\s+/).map(Number)
+            .filter(n => Number.isFinite(n) && n >= 1).map(n => Math.min(Math.round(n), 16));
+        r.sort((a, b) => b - a);                       // a partition is non-increasing
+        return r.length ? r.slice(0, 16) : [6, 5, 4, 3, 2];
+    }
+    function genPartition(type, n) {
+        n = Math.max(2, Math.min(n || 6, 14));
+        if (type === "rectangle") return Array(n).fill(n);
+        if (type === "staircase") { const r = []; for (let k = n; k >= 1; k--) r.push(k); return r; }
+        const r = []; let prev = n;                    // random non-increasing
+        while (prev > 0 && r.length < n) { const w = 1 + Math.floor(Math.random() * prev); r.push(w); prev = w; }
+        return r.length ? r : [n];
+    }
+    function startCell(rows, mode) {
+        if (mode === "random") {
+            const cells = [];
+            for (let r = 0; r < rows.length; r++) for (let c = 0; c < rows[r]; c++) if (c + r >= 2) cells.push([c, r]);
+            if (cells.length) return cells[(Math.random() * cells.length) | 0];
+        }
+        let best = [0, 0], score = -1;                 // farthest cell from the corner
+        for (let r = 0; r < rows.length; r++) for (let c = 0; c < rows[r]; c++) {
+            const s = c + r + r * 0.001;
+            if (s > score) { score = s; best = [c, r]; }
+        }
+        return best;
+    }
+
     /* ---------------- node export (for the test harness) ---------------- */
     if (typeof module !== "undefined" && module.exports) {
-        module.exports = { PIECES, legalMoves, makeSolver, chooseMove };
+        module.exports = { PIECES, legalMoves, makeSolver, chooseMove, inBoard, parsePartition, genPartition, startCell };
     }
     if (typeof document === "undefined") return;   // running under Node — no DOM below
 
@@ -240,7 +252,7 @@
             setup: document.getElementById("ic-setup"), over: document.getElementById("ic-over"),
         };
 
-        const state = { piece, W: 8, H: 8, c: 7, r: 7, mode: "normal", ai: "B", diff: 60,
+        const state = { piece, rows: [6, 5, 4, 3, 2], c: 0, r: 0, mode: "normal", ai: "B", diff: 60,
                         turn: "A", moveCount: 0, solver: null, busy: false, analysis: false, over: false };
 
         /* ---- analysis toggle ---- */
@@ -259,7 +271,7 @@
 
         function begin(cfg) {
             Object.assign(state, cfg);
-            state.solver = makeSolver(state.piece, state.W, state.H);
+            state.solver = makeSolver(state.piece, state.rows);
             state.moveCount = 0; state.over = false; state.busy = false;
             state.turn = "A";
             refs.setup.classList.remove("visible");
@@ -270,14 +282,16 @@
             maybeAI();
         }
 
-        /* ---- board ---- */
+        /* ---- board (renders only the partition's cells) ---- */
         function buildBoard() {
             const b = refs.board;
             b.innerHTML = "";
-            b.style.setProperty("--w", state.W);
-            b.style.setProperty("--h", state.H);
-            for (let r = state.H - 1; r >= 0; r--) {
-                for (let c = 0; c < state.W; c++) {
+            const rows = state.rows, H = rows.length, maxW = Math.max.apply(null, rows);
+            b.style.setProperty("--w", maxW);
+            b.style.setProperty("--h", H);
+            for (let r = H - 1; r >= 0; r--) {
+                for (let c = 0; c < maxW; c++) {
+                    if (c >= rows[r]) { b.appendChild(el("div", "ic-sq empty")); continue; } // off the partition
                     const sq = el("div", "ic-sq " + (((c + r) % 2 === 0) ? "dark" : "light"));
                     sq.dataset.c = c; sq.dataset.r = r;
                     if (c === 0 && r === 0) sq.classList.add("corner");
@@ -357,7 +371,7 @@
             refs.turn.classList.add("cpu");
             const think = prefersReduced ? 60 : 520;
             setTimeout(() => {
-                const { move } = chooseMove(state.solver, state.piece, state.c, state.r, state.W, state.H, state.mode, state.diff);
+                const { move } = chooseMove(state.solver, state.c, state.r, state.mode, state.diff);
                 if (!move) { endGame("you"); return; }   // shouldn't happen (turn implies a move exists)
                 doMove(move[0], move[1], "ai");
             }, think);
@@ -366,6 +380,8 @@
         function endGame(mover) {
             state.over = true; state.busy = false;
             clearHints();
+            refs.moves.textContent = state.moveCount;
+            refs.pos.textContent = sqName(state.c, state.r);
             // normal: the player who moved into the terminal square WINS; misère: that player LOSES
             const moverWon = state.mode === "misere" ? false : true;
             const youAreMover = (mover === "you");
@@ -416,13 +432,17 @@
     function setupModalHTML() {
         return '<div id="ic-setup" class="modal-backdrop"><div class="modal">' +
             '<div class="modal-header"><h2>game setup</h2></div>' +
-            '<p>Move the piece toward the bottom-left corner. The last legal move wins.</p>' +
-            '<label>Board size</label>' +
-            '<div class="input-group"><select id="ic-size">' +
-              '<option value="6">6 × 6</option><option value="8" selected>8 × 8</option>' +
-              '<option value="10">10 × 10</option><option value="12">12 × 12</option></select></div>' +
-            '<label>Start square</label>' +
-            '<div class="input-group"><select id="ic-start"><option value="tr" selected>top-right</option>' +
+            '<p>The piece moves toward the bottom-left corner across the cells of a partition. The last legal move wins.</p>' +
+            '<label>Partition — row lengths (longest first)</label>' +
+            '<div class="input-group"><input type="text" id="ic-rows" value="6 5 4 3 2" placeholder="e.g. 6 5 4 3 2"></div>' +
+            '<label>…or generate one</label>' +
+            '<div class="input-group"><select id="ic-gentype">' +
+              '<option value="staircase">staircase</option><option value="rectangle">rectangle (square)</option>' +
+              '<option value="random">random</option></select>' +
+              '<input type="number" id="ic-genn" min="2" max="14" value="6" style="max-width:74px">' +
+              '<button type="button" id="ic-genbtn" class="secondary-button">generate</button></div>' +
+            '<label>Start cell</label>' +
+            '<div class="input-group"><select id="ic-start"><option value="far" selected>farthest from corner</option>' +
               '<option value="random">random</option></select></div>' +
             '<label>Mode</label>' +
             '<div class="input-group"><select id="ic-mode"><option value="normal" selected>Normal (last move wins)</option>' +
@@ -444,13 +464,15 @@
         const diff = document.getElementById("ic-diff"), lbl = document.getElementById("ic-difflabel");
         const name = v => v >= 85 ? "Perfect" : v >= 60 ? "Hard" : v >= 35 ? "Medium" : "Easy";
         diff.addEventListener("input", () => lbl.textContent = name(+diff.value) + " (" + diff.value + ")");
+        const rowsInput = document.getElementById("ic-rows");
+        document.getElementById("ic-genbtn").addEventListener("click", () => {
+            rowsInput.value = genPartition(document.getElementById("ic-gentype").value, +document.getElementById("ic-genn").value).join(" ");
+        });
         document.getElementById("ic-start-btn").addEventListener("click", () => {
-            const size = +document.getElementById("ic-size").value;
-            const start = document.getElementById("ic-start").value;
-            let c = size - 1, r = size - 1;
-            if (start === "random") { do { c = (Math.random() * size) | 0; r = (Math.random() * size) | 0; } while (c + r < Math.max(2, size)); }
+            const rows = parsePartition(rowsInput.value);
+            const start = startCell(rows, document.getElementById("ic-start").value);
             begin({
-                W: size, H: size, c, r,
+                rows, c: start[0], r: start[1],
                 mode: document.getElementById("ic-mode").value,
                 ai: document.getElementById("ic-ai").value,
                 diff: +diff.value,
