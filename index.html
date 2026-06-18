@@ -45,10 +45,8 @@
 
             <nav class="main-nav" aria-label="Primary">
                 <button id="about-btn" class="nav-link nav-button" aria-expanded="false" aria-haspopup="true">about</button>
-                <a class="nav-link" href="multiplayer/multiplayer_landing.html">multiplayer</a>
-                <a class="nav-link" href="wiki.html">wiki</a>
-                <a class="nav-link" href="developers.html">developers</a>
-                <a class="nav-link" href="https://github.com/albatrossfake06-star/Partition-Games-3D" target="_blank" rel="noopener">github</a>
+                <!-- nav items are rendered from assets/js/nav.config.js -->
+                <span data-nav class="nav-config"></span>
                 <button id="theme-toggle" class="theme-toggle nav-button" aria-label="Toggle theme"></button>
             </nav>
 
@@ -410,6 +408,8 @@
         </div>
     </footer>
 
+    <script src="assets/js/nav.config.js"></script>
+    <script src="assets/js/site-nav.js"></script>
     <script type="module" src="assets/js/landing.js"></script>
 </body>
 </html>
