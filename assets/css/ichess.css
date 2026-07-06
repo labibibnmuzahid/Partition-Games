@@ -162,6 +162,35 @@
 }
 .ic-range { width: 100%; accent-color: var(--pg-orange); }
 
+/* ---- General piece: custom move-set builder ---- */
+.ic-general-block { display: contents; }
+.ic-moveset-summary { font-family: var(--font-mono); font-size: 12px; color: var(--pg-cyan); margin: 2px 0 4px; }
+.ic-moveset-summary.warn { color: var(--pg-orange); }
+
+.ic-picker { max-width: 460px; }
+.ic-grid-wrap { display: flex; justify-content: center; margin: 6px 0; }
+.ic-grid { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px; }
+.ic-gc {
+    width: 26px; height: 26px; border-radius: 5px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: 11px;
+    background: var(--pg-surface); color: var(--pg-muted);
+    border: 1px solid transparent; transition: transform .12s ease, background .15s;
+}
+.ic-gc.lbl { background: transparent; color: var(--pg-dim); font-size: 10px; }
+.ic-gc.piece { background: color-mix(in srgb, var(--pg-orange) 24%, transparent); color: var(--pg-orange); border-color: var(--pg-orange); font-size: 13px; }
+.ic-gc.off { background: transparent; opacity: .18; }         /* not corner-directed → unavailable */
+.ic-gc.on { cursor: pointer; border-color: var(--pg-stroke); }
+.ic-gc.on:hover { background: var(--pg-surface-2); transform: scale(1.08); }
+.ic-gc.on.step  { background: var(--pg-cyan); color: #04201c; border-color: var(--pg-cyan); box-shadow: 0 0 12px color-mix(in srgb, var(--pg-cyan) 45%, transparent); }
+.ic-gc.on.slide { background: var(--pg-orange); color: #2a0f04; border-color: var(--pg-orange); box-shadow: 0 0 12px color-mix(in srgb, var(--pg-orange) 45%, transparent); }
+.ic-legend { display: flex; gap: 16px; justify-content: center; font-family: var(--font-mono); font-size: 11px; color: var(--pg-muted); margin: 6px 0 2px; }
+.ic-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ic-legend .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.ic-legend .sw.step { background: var(--pg-cyan); }
+.ic-legend .sw.slide { background: var(--pg-orange); }
+.ic-legend .sw.corner { background: color-mix(in srgb, var(--pg-orange) 24%, transparent); border: 1px solid var(--pg-orange); }
+
 /* ---- responsive ---- */
 @media (max-width: 980px) {
     .ic-wrap { grid-template-columns: 1fr; }

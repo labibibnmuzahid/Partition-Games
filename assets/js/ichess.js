@@ -45,7 +45,31 @@
     function kingMoves(c, r, rows) { return stepMoves(c, r, rows, KING_D); }
     function knightMoves(c, r, rows) { return stepMoves(c, r, rows, KNIGHT_D); }
     function pawnMoves(c, r, rows) { return stepMoves(c, r, rows, PAWN_D); }
-    function generalMoves(c, r, rows) { return kingMoves(c, r, rows).concat(knightMoves(c, r, rows)); }
+    // The General piece uses a USER-DEFINED move set:
+    //   leaps  = single-step jumps (like a knight/king step)
+    //   riders = repeatable directions that slide until off-board (like a rook)
+    // Every vector must be "corner-directed" (Δcol + Δrow < 0) so the game stays
+    // finite and the Grundy recursion is well-founded. Default = King + Knight.
+    var DEFAULT_GENERAL = {
+        leaps: [[-1, 0], [0, -1], [-1, -1], [-1, -2], [-2, -1], [-2, 1], [1, -2]],
+        riders: []
+    };
+    function generalMoves(c, r, rows, cm) {
+        cm = cm || DEFAULT_GENERAL;
+        var out = [];
+        (cm.leaps || []).forEach(function (v) {
+            var nc = c + v[0], nr = r + v[1];
+            if (inBoard(nc, nr, rows)) out.push([nc, nr]);
+        });
+        (cm.riders || []).forEach(function (v) {
+            for (var k = 1; ; k++) {
+                var nc = c + v[0] * k, nr = r + v[1] * k;
+                if (!inBoard(nc, nr, rows)) break;
+                out.push([nc, nr]);
+            }
+        });
+        return out;
+    }
 
     const PIECES = {
         rook:    { name: "Rook",    glyph: "♜", family: "line", gen: rookMoves,
@@ -78,10 +102,14 @@
                    win: "Move to a <strong>Grundy-0</strong> position and keep returning your opponent to one." }
     };
 
-    function legalMoves(piece, c, r, rows) { return PIECES[piece].gen(c, r, rows); }
+    function legalMoves(piece, c, r, rows, cm) {
+        if (piece === "general") return generalMoves(c, r, rows, cm);
+        return PIECES[piece].gen(c, r, rows);
+    }
 
     /* ---------------- Sprague–Grundy over the partition's cells ---------------- */
-    function makeSolver(piece, rows) {
+    // `cm` (custom move set) is only used by the General piece.
+    function makeSolver(piece, rows, cm) {
         const gMemo = new Map();   // normal-play Grundy value
         const mMemo = new Map();   // misère: does the player to move win?
         function key(c, r) { return c + "," + r; }
@@ -90,7 +118,7 @@
             const k = key(c, r);
             if (gMemo.has(k)) return gMemo.get(k);
             const seen = new Set();
-            for (const [nc, nr] of legalMoves(piece, c, r, rows)) seen.add(grundy(nc, nr));
+            for (const [nc, nr] of legalMoves(piece, c, r, rows, cm)) seen.add(grundy(nc, nr));
             let mex = 0; while (seen.has(mex)) mex++;
             gMemo.set(k, mex);
             return mex;
@@ -99,14 +127,14 @@
         function misereWin(c, r) {
             const k = key(c, r);
             if (mMemo.has(k)) return mMemo.get(k);
-            const moves = legalMoves(piece, c, r, rows);
+            const moves = legalMoves(piece, c, r, rows, cm);
             let res;
             if (moves.length === 0) res = true;
             else { res = false; for (const [nc, nr] of moves) if (!misereWin(nc, nr)) { res = true; break; } }
             mMemo.set(k, res);
             return res;
         }
-        return { grundy, misereWin, legal: (c, r) => legalMoves(piece, c, r, rows) };
+        return { grundy, misereWin, legal: (c, r) => legalMoves(piece, c, r, rows, cm) };
     }
 
     /* ---------------- AI: perfect play with a difficulty dial ---------------- */
@@ -156,7 +184,7 @@
 
     /* ---------------- node export (for the test harness) ---------------- */
     if (typeof module !== "undefined" && module.exports) {
-        module.exports = { PIECES, legalMoves, makeSolver, chooseMove, inBoard, parsePartition, genPartition, startCell };
+        module.exports = { PIECES, legalMoves, makeSolver, chooseMove, inBoard, parsePartition, genPartition, startCell, generalMoves, DEFAULT_GENERAL };
     }
     if (typeof document === "undefined") return;   // running under Node — no DOM below
 
@@ -253,7 +281,8 @@
         };
 
         const state = { piece, rows: [6, 5, 4, 3, 2], c: 0, r: 0, mode: "normal", ai: "B", diff: 60,
-                        turn: "A", moveCount: 0, solver: null, busy: false, analysis: false, over: false };
+                        turn: "A", moveCount: 0, solver: null, busy: false, analysis: false, over: false,
+                        customMoves: (piece === "general" ? cloneCM(DEFAULT_GENERAL) : null) };
 
         /* ---- analysis toggle ---- */
         document.getElementById("ic-analysis").addEventListener("click", () => {
@@ -265,13 +294,14 @@
         refs.over.querySelector("#ic-again").addEventListener("click", () => openSetup());
 
         wireSetup(state, refs, begin);
+        if (piece === "general") setupGeneralMoves(state, refs, root);
         openSetup();
 
         function openSetup() { refs.over.classList.remove("visible"); refs.setup.classList.add("visible"); }
 
         function begin(cfg) {
             Object.assign(state, cfg);
-            state.solver = makeSolver(state.piece, state.rows);
+            state.solver = makeSolver(state.piece, state.rows, state.customMoves);
             state.moveCount = 0; state.over = false; state.busy = false;
             state.turn = "A";
             refs.setup.classList.remove("visible");
@@ -477,6 +507,106 @@
                 ai: document.getElementById("ic-ai").value,
                 diff: +diff.value,
             });
+        });
+    }
+
+    /* ---------------- General piece: custom move-set builder ---------------- */
+    function cloneCM(cm) { return { leaps: (cm.leaps || []).map(function (v) { return v.slice(); }), riders: (cm.riders || []).map(function (v) { return v.slice(); }) }; }
+
+    function setupGeneralMoves(state, refs, root) {
+        var N = 5;                              // grid spans Δcol/Δrow in [-5, 5]
+        var startBtn = document.getElementById("ic-start-btn");
+
+        // 1) a row in the setup modal: summary + "define moves" button
+        var block = el("div", "ic-general-block");
+        block.innerHTML =
+            '<label>Custom move set — the General moves however you like</label>' +
+            '<div class="ic-moveset-summary" id="ic-msum"></div>' +
+            '<div class="input-group"><button type="button" id="ic-defmoves" class="secondary-button" style="flex:1">define moves…</button></div>';
+        startBtn.parentNode.insertBefore(block, startBtn);
+
+        // 2) the picker overlay
+        var ov = el("div", "modal-backdrop"); ov.id = "ic-movepicker";
+        ov.innerHTML =
+            '<div class="modal ic-picker">' +
+              '<div class="modal-header"><h2>define the General’s moves</h2></div>' +
+              '<p>Click a cell relative to the piece (◆). <b>Once</b> = a single step, <b>twice</b> = a repeatable slide, <b>three times</b> = clear. Only cells toward the corner are allowed.</p>' +
+              '<div class="ic-grid-wrap"><div class="ic-grid" id="ic-grid"></div></div>' +
+              '<div class="ic-legend"><span><i class="sw step"></i> step</span><span><i class="sw slide"></i> slide (repeatable)</span><span><i class="sw corner"></i> ◆ piece</span></div>' +
+              '<div class="input-group">' +
+                '<button type="button" id="ic-mv-king" class="secondary-button">King + Knight</button>' +
+                '<button type="button" id="ic-mv-clear" class="secondary-button">clear</button>' +
+                '<button type="button" id="ic-mv-done" class="modal-btn" style="flex:1">done</button>' +
+              '</div>' +
+            '</div>';
+        root.appendChild(ov);
+
+        var grid = document.getElementById("ic-grid");
+        var cells = {};                          // "dc,dr" -> {el, state}
+        grid.style.setProperty("--n", (2 * N + 2));
+
+        function corner(dc, dr) { return (dc + dr) < 0; }   // corner-directed ⇒ finite game
+        function keyv(dc, dr) { return dc + "," + dr; }
+
+        // header-corner + column labels (top row)
+        grid.appendChild(el("div", "ic-gc lbl"));
+        for (var dc = -N; dc <= N; dc++) grid.appendChild(el("div", "ic-gc lbl", String(dc)));
+        // rows: Δrow from +N (top) down to -N (bottom) so bottom-left = toward corner
+        for (var dr = N; dr >= -N; dr--) {
+            grid.appendChild(el("div", "ic-gc lbl", String(dr)));      // row label
+            for (var dcx = -N; dcx <= N; dcx++) {
+                if (dcx === 0 && dr === 0) { grid.appendChild(el("div", "ic-gc piece", "◆")); continue; }
+                var cell = el("div", "ic-gc" + (corner(dcx, dr) ? " on" : " off"));
+                if (corner(dcx, dr)) {
+                    (function (dcv, drv, elc) {
+                        elc.addEventListener("click", function () {
+                            var c = cells[keyv(dcv, drv)];
+                            c.state = (c.state + 1) % 3;
+                            elc.classList.toggle("step", c.state === 1);
+                            elc.classList.toggle("slide", c.state === 2);
+                            summarise();
+                        });
+                    })(dcx, dr, cell);
+                    cells[keyv(dcx, dr)] = { el: cell, state: 0 };
+                }
+                grid.appendChild(cell);
+            }
+        }
+
+        function applyCM(cm) {
+            Object.keys(cells).forEach(function (k) { var c = cells[k]; c.state = 0; c.el.classList.remove("step", "slide"); });
+            (cm.leaps || []).forEach(function (v) { var c = cells[keyv(v[0], v[1])]; if (c) { c.state = 1; c.el.classList.add("step"); } });
+            (cm.riders || []).forEach(function (v) { var c = cells[keyv(v[0], v[1])]; if (c) { c.state = 2; c.el.classList.add("slide"); } });
+            summarise();
+        }
+        function readCM() {
+            var cm = { leaps: [], riders: [] };
+            Object.keys(cells).forEach(function (k) {
+                var c = cells[k]; if (c.state === 0) return;
+                var v = k.split(",").map(Number);
+                (c.state === 1 ? cm.leaps : cm.riders).push(v);
+            });
+            return cm;
+        }
+        function summarise() {
+            var cm = readCM();
+            var msg = document.getElementById("ic-msum");
+            var total = cm.leaps.length + cm.riders.length;
+            msg.textContent = total === 0 ? "no moves selected — the piece can’t move."
+                : (cm.leaps.length + " step" + (cm.leaps.length === 1 ? "" : "s") + " · " + cm.riders.length + " slide" + (cm.riders.length === 1 ? "" : "s"));
+            msg.classList.toggle("warn", total === 0);
+        }
+
+        applyCM(state.customMoves);              // seed from current (default King+Knight)
+
+        document.getElementById("ic-defmoves").addEventListener("click", function () { applyCM(state.customMoves); ov.classList.add("visible"); });
+        document.getElementById("ic-mv-king").addEventListener("click", function () { applyCM(DEFAULT_GENERAL); });
+        document.getElementById("ic-mv-clear").addEventListener("click", function () { applyCM({ leaps: [], riders: [] }); });
+        document.getElementById("ic-mv-done").addEventListener("click", function () {
+            var cm = readCM();
+            if (cm.leaps.length + cm.riders.length === 0) { summarise(); return; }   // require ≥1 move
+            state.customMoves = cm;
+            ov.classList.remove("visible");
         });
     }
 
