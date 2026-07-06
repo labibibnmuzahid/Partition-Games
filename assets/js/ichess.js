@@ -608,6 +608,10 @@
             state.customMoves = cm;
             ov.classList.remove("visible");
         });
+        // back out without changes: click the backdrop or press Escape → revert to the saved set
+        function cancel() { applyCM(state.customMoves); ov.classList.remove("visible"); }
+        ov.addEventListener("click", function (e) { if (e.target === ov) cancel(); });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape" && ov.classList.contains("visible")) cancel(); });
     }
 
     /* ---------------- tiny sound (optional, fails silently) ---------------- */
