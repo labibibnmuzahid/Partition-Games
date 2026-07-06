@@ -1116,3 +1116,60 @@ footer {
         padding: 8px 12px;
     }
 } 
+/* ============================================================
+   3D BLOCK TILES — depth + motion upgrade (Partition Games 3D)
+   Visual-only; positions/sizes still come from inline styles,
+   so all 12 game engines keep working untouched.
+   ============================================================ */
+.tile {
+    border-radius: 3px;
+    transition: background-color 0.3s ease,
+                border-color     0.3s ease,
+                transform        0.22s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow       0.22s ease;
+    box-shadow:
+        1.5px 1.5px 0 var(--tile-shadow),
+        3px   3px   0 var(--tile-shadow),
+        4px   7px   12px -4px rgba(0, 0, 0, 0.35);
+}
+
+/* subtle top-light face so the cube reads as solid */
+.tile::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 2px;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 55%);
+    pointer-events: none;
+}
+[data-theme="dark"] .tile::after {
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 55%);
+}
+
+/* lift selectable blocks on hover for a tactile, 3D feel */
+.tile.selectable:hover {
+    transform: translateY(-4px) scale(1.04);
+    box-shadow:
+        2px 4px 0 var(--tile-shadow),
+        4px 8px 0 var(--tile-shadow),
+        7px 16px 22px -6px rgba(0, 0, 0, 0.45);
+    z-index: 8;
+}
+
+/* dimensional removal: the block topples and falls away */
+.tile.removing {
+    opacity: 0;
+    transform: perspective(420px) rotateX(72deg) translateY(26px) scale(0.45);
+    transition-duration: 0.45s;
+    box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tile { transition-duration: 0.01ms; }
+}
+
+/* empty/placeholder cells stay flat */
+.tile.empty {
+    box-shadow: none !important;
+}
+.tile.empty::after { display: none; }
